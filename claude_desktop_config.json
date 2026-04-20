@@ -1,0 +1,16 @@
+{
+  "mcpServers": {
+    "couchbase": {
+      "command": "python",
+      "args": ["/absolute/path/to/couchbase-mcp-server/server.py"],
+      "env": {
+        "CB_CONNECTION_STRING": "couchbase://localhost",
+        "CB_USERNAME": "Administrator",
+        "CB_PASSWORD": "password",
+        "CB_BUCKET": "default",
+        "CB_SCOPE": "_default",
+        "CB_COLLECTION": "_default"
+      }
+    }
+  }
+}
