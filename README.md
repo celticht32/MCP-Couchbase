@@ -1,18 +1,23 @@
 Couchbase MCP Server
+
 A Python MCP (Model Context Protocol) server that exposes Couchbase operations as tools for AI assistants like Claude.
+
 Features
-Category	Tools
+
 CRUD	`cb\_get`, `cb\_upsert`, `cb\_insert`, `cb\_replace`, `cb\_delete`, `cb\_get\_multi`
 N1QL / SQL++	`cb\_query` (with named parameters)
 Full-Text Search	`cb\_fts\_search` (match query, fields, highlighting)
 Utility	`cb\_ping`
----
+
+
 Quick Start
 1. Install dependencies
 ```bash
 pip install -r requirements.txt
 ```
-> Requires Python 3.10+ and a running Couchbase Server (7.x+).
+
+Requires Python 3.10+ and a running Couchbase Server (7.x+).
+
 2. Configure environment variables
 Variable	Default	Description
 `CB\_CONNECTION\_STRING`	`couchbase://localhost`	Cluster connection string
@@ -22,6 +27,7 @@ Variable	Default	Description
 `CB\_SCOPE`	`\_default`	Default scope
 `CB\_COLLECTION`	`\_default`	Default collection
 You can export them directly or supply them in the MCP config (see step 3).
+
 3. Register with Claude Desktop
 Edit `\~/Library/Application Support/Claude/claude\_desktop\_config.json` (macOS) or `%APPDATA%\\Claude\\claude\_desktop\_config.json` (Windows) and merge in:
 ```json
@@ -89,13 +95,14 @@ Same schema as `cb\_upsert`. `insert` fails if the key exists; `replace` fails i
 {}
 ```
 ---
+
 Connecting to Couchbase Capella (Cloud)
 Use the connection string from your Capella console and enable TLS:
-```
+
 CB\_CONNECTION\_STRING=couchbases://cb.xxxx.cloud.couchbase.com
-```
+
 Note the `couchbases://` scheme (TLS). Capella requires certificates which the SDK handles automatically.
----
+
 Running standalone (for testing)
 ```bash
 CB\_CONNECTION\_STRING=couchbase://localhost \\
