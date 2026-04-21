@@ -9,7 +9,8 @@
         "CB_PASSWORD": "password",
         "CB_BUCKET": "default",
         "CB_SCOPE": "_default",
-        "CB_COLLECTION": "_default"
+        "CB_COLLECTION": "_default",
+        "CB_MGMT_PORT": "8091"
       }
     }
   }

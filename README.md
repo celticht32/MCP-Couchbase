@@ -1,114 +1,112 @@
-Couchbase MCP Server
+# Couchbase MCP Server — Extended
 
-A Python MCP (Model Context Protocol) server that exposes Couchbase operations as tools for AI assistants like Claude.
+A Python MCP (Model Context Protocol) server exposing the **full Couchbase data-plane and admin REST API** as tools for AI assistants like Claude.
 
-Features
+---
 
-CRUD	`cb\_get`, `cb\_upsert`, `cb\_insert`, `cb\_replace`, `cb\_delete`, `cb\_get\_multi`
-N1QL / SQL++	`cb\_query` (with named parameters)
-Full-Text Search	`cb\_fts\_search` (match query, fields, highlighting)
-Utility	`cb\_ping`
+## Tool Summary (75+ tools across 9 categories)
 
+| Category | Prefix | Count | Covers |
+|---|---|---|---|
+| Data plane | `cb_` | 9 | CRUD, N1QL, FTS, ping |
+| Buckets | `admin_bucket_` | 10 | Create/update/delete/flush/compact/sample |
+| Scopes & Collections | `admin_scope_` / `admin_collection_` | 5 | Full lifecycle |
+| Security & RBAC | `admin_user_` / `admin_group_` / `admin_*` | 17 | Users, groups, roles, audit, TLS, passwords |
+| Cluster & Nodes | `admin_cluster_` / `admin_node_` / `admin_*` | 29 | Nodes, rebalance, failover, server groups, logs, alerts |
+| XDCR | `admin_xdcr_` | 10 | References, replications, settings |
+| GSI Indexes | `admin_index_` | 6 | Create/drop/build/settings via N1QL |
+| FTS Admin | `admin_fts_` | 9 | FTS index CRUD, stats, ingestion control |
+| Stats & Monitoring | `admin_stats_` / `admin_*` | 10 | Prometheus metrics, events, query/index settings |
 
-Quick Start
-1. Install dependencies
+---
+
+## Project Structure
+
+```
+couchbase-mcp-server/
+├── server.py               # MCP entry point — composes all handlers
+├── requirements.txt
+├── claude_desktop_config.json
+├── README.md
+└── handlers/
+    ├── __init__.py
+    ├── shared.py           # SDK connection, HTTP admin client, ok/err helpers
+    ├── data.py             # CRUD, N1QL, FTS search, ping
+    ├── buckets.py          # Bucket management + sample buckets
+    ├── collections.py      # Scopes and collections
+    ├── security.py         # Users, groups, RBAC, audit, password policy, TLS
+    ├── cluster.py          # Cluster info, nodes, rebalance, failover, server groups, alerts
+    ├── xdcr.py             # Cross-datacenter replication
+    ├── indexes.py          # GSI index management
+    ├── search_admin.py     # FTS index administration
+    └── stats.py            # Metrics, events, diagnostics, query/index service settings
+```
+
+---
+
+## Quick Start
+
+### 1. Install dependencies
 ```bash
 pip install -r requirements.txt
 ```
 
-Requires Python 3.10+ and a running Couchbase Server (7.x+).
+### 2. Configure environment variables
 
-2. Configure environment variables
-Variable	Default	Description
-`CB\_CONNECTION\_STRING`	`couchbase://localhost`	Cluster connection string
-`CB\_USERNAME`	`Administrator`	Auth username
-`CB\_PASSWORD`	`password`	Auth password
-`CB\_BUCKET`	`default`	Default bucket
-`CB\_SCOPE`	`\_default`	Default scope
-`CB\_COLLECTION`	`\_default`	Default collection
-You can export them directly or supply them in the MCP config (see step 3).
+| Variable | Default | Description |
+|---|---|---|
+| `CB_CONNECTION_STRING` | `couchbase://localhost` | Use `couchbases://` for TLS |
+| `CB_USERNAME` | `Administrator` | |
+| `CB_PASSWORD` | `password` | |
+| `CB_BUCKET` | `default` | Default bucket for data ops |
+| `CB_SCOPE` | `_default` | |
+| `CB_COLLECTION` | `_default` | |
+| `CB_MGMT_PORT` | `8091` | Capella: use `18091` |
 
-3. Register with Claude Desktop
-Edit `\~/Library/Application Support/Claude/claude\_desktop\_config.json` (macOS) or `%APPDATA%\\Claude\\claude\_desktop\_config.json` (Windows) and merge in:
+### 3. Register with Claude Desktop
+
+Edit `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS) or `%APPDATA%\Claude\claude_desktop_config.json` (Windows):
+
 ```json
 {
   "mcpServers": {
     "couchbase": {
       "command": "python",
-      "args": \["/absolute/path/to/couchbase-mcp-server/server.py"],
+      "args": ["/absolute/path/to/couchbase-mcp-server/server.py"],
       "env": {
-        "CB\_CONNECTION\_STRING": "couchbase://localhost",
-        "CB\_USERNAME": "Administrator",
-        "CB\_PASSWORD": "password",
-        "CB\_BUCKET": "travel-sample",
-        "CB\_SCOPE": "\_default",
-        "CB\_COLLECTION": "\_default"
+        "CB_CONNECTION_STRING": "couchbase://localhost",
+        "CB_USERNAME": "Administrator",
+        "CB_PASSWORD": "password",
+        "CB_BUCKET": "travel-sample"
       }
     }
   }
 }
 ```
-Restart Claude Desktop. The Couchbase tools will appear automatically.
----
-Tool Reference
-`cb\_get`
-```json
-{ "key": "airline\_10" }
-```
-`cb\_upsert`
-```json
-{
-  "key": "user::alice",
-  "document": { "name": "Alice", "email": "alice@example.com" }
-}
-```
-`cb\_insert` / `cb\_replace`
-Same schema as `cb\_upsert`. `insert` fails if the key exists; `replace` fails if it doesn't.
-`cb\_delete`
-```json
-{ "key": "user::alice" }
-```
-`cb\_get\_multi`
-```json
-{ "keys": \["airline\_10", "airline\_11", "airline\_12"] }
-```
-`cb\_query`
-```json
-{
-  "statement": "SELECT name, country FROM `travel-sample`.inventory.airline WHERE country = $country LIMIT 5",
-  "params": { "country": "United States" },
-  "readonly": true
-}
-```
-`cb\_fts\_search`
-```json
-{
-  "index\_name": "travel-search",
-  "query": "San Francisco airport",
-  "limit": 5,
-  "fields": \["name", "city", "country"],
-  "highlight": true
-}
-```
-`cb\_ping`
-```json
-{}
-```
+
+Restart Claude Desktop — all 75+ tools appear automatically.
+
 ---
 
-Connecting to Couchbase Capella (Cloud)
-Use the connection string from your Capella console and enable TLS:
+## Example Prompts
 
-CB\_CONNECTION\_STRING=couchbases://cb.xxxx.cloud.couchbase.com
-
-Note the `couchbases://` scheme (TLS). Capella requires certificates which the SDK handles automatically.
-
-Running standalone (for testing)
-```bash
-CB\_CONNECTION\_STRING=couchbase://localhost \\
-CB\_USERNAME=Administrator \\
-CB\_PASSWORD=password \\
-CB\_BUCKET=travel-sample \\
-python server.py
 ```
-The server communicates over stdio per the MCP spec — use an MCP client or Claude Desktop to interact with it.
+List all buckets and show memory usage for each.
+Create a bucket called "sessions" with 256MB RAM, ephemeral type.
+Add a user "app_reader" with read-only access to travel-sample.
+Show me which nodes are in the cluster and their service assignments.
+Create a GSI index on the `email` field of users._default._default.
+Set up XDCR replication from travel-sample to my DR cluster at 10.1.0.5.
+Show current rebalance progress.
+List all FTS indexes and their document counts.
+Get the last 20 system events from the cluster log.
+```
+
+---
+
+## Notes
+
+- **Admin tools** call the Couchbase Management REST API (port 8091) via HTTP — no extra SDK needed beyond the Python SDK already installed.
+- **Data tools** use the Couchbase Python SDK with lazy connection initialization.
+- For **Couchbase Capella**, set `CB_CONNECTION_STRING=couchbases://...` and `CB_MGMT_PORT=18091`.
+- Destructive operations (delete bucket, flush, hard failover) are explicit tools — Claude will ask for confirmation in context before acting.
