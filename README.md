@@ -1,4 +1,4 @@
-# Couchbase MCP Server — Extended
+# Couchbase MCP Server
 
 A Python MCP (Model Context Protocol) server exposing the **full Couchbase data-plane and admin REST API** as tools for AI assistants like Claude.
 
