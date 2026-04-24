@@ -115,6 +115,23 @@ All inquiries should be through GitHub.
 Your collaboration helps me move forward together - thank you! Pull requests and contributions from the community are welcome and encouraged.
 
 ---
+## Requirements
+Python version
+Python 3.10 or higher is required. The binding constraint is the mcp package itself — it declares requires_python >= 3.10. The code also uses list[Tool] and dict as generic type hints directly (PEP 585), but every handler file includes from __future__ import annotations which backports that syntax to 3.8+. Without that annotation import the syntax would require 3.9+. In practice 3.10 is the floor.
+
+pip packages
+MCP server (requirements.txt):
+PackageVersionWhymcp>=1.0.0MCP server framework — Server, stdio_server, Tool, TextContentcouchbase>=4.2.0Couchbase Python SDK — used for CRUD, N1QL, FTS data-plane tools
+GUI server (install separately):
+PackageVersionWhyflaskany recentREST bridge between browser and MCP handlersflask-corsany recentCORS headers so the SPA can call the API
+bashpip install mcp>=1.0.0 couchbase>=4.2.0          # MCP server
+pip install flask flask-cors                       # GUI only
+
+Standard library only (no extra install needed)
+The admin REST API tools use only Python built-ins — urllib.request, urllib.parse, urllib.error, base64, json, os, asyncio, typing — so the HTTP side has zero extra dependencies beyond what ships with Python.
+
+Couchbase server compatibility
+The couchbase SDK >=4.2.0 targets Couchbase Server 7.0+ and Couchbase Capella. The apply_profile("wan_development") call in shared.py relaxes timeouts for remote/cloud connections and was added in SDK 4.1, so 4.2+ covers it cleanly
 
 ## Notes
 
