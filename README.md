@@ -103,6 +103,18 @@ Get the last 20 system events from the cluster log.
 ```
 
 ---
+## Support Policy
+I truly appreciate your interest in this project! This project is community-maintained. However, I actively monitor and maintain this repo and will try to resolve issues on a best-effort basis.
+
+All inquiries should be through GitHub.
+
+    Bug reports: Open a GitHub issue
+    Feature requests: Open a GitHub issue with the "enhancement" label
+    Questions: Open a GitHub issue
+
+Your collaboration helps me move forward together - thank you! Pull requests and contributions from the community are welcome and encouraged.
+
+---
 
 ## Notes
 
