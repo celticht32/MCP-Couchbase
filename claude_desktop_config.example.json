@@ -1,0 +1,37 @@
+{
+  "mcpServers": {
+    "couchbase": {
+      "command": "/absolute/path/to/python3",
+      "args": ["/absolute/path/to/MCP-Couchbase/server.py"],
+      "env": {
+        "CB_CONNECTION_STRING": "couchbases://cb.your-cluster.cloud.couchbase.com",
+        "CB_USERNAME": "your-db-user",
+        "CB_PASSWORD": "your-db-password",
+        "CB_BUCKET": "travel-sample",
+        "CB_SCOPE": "_default",
+        "CB_COLLECTION": "_default",
+        "CB_MGMT_PORT": "18091",
+
+        "_comment_mtls": "Alternative to CB_USERNAME/CB_PASSWORD — uncomment to use mTLS",
+        "_CB_CLIENT_CERT_PATH": "/etc/couchbase/client.crt",
+        "_CB_CLIENT_KEY_PATH": "/etc/couchbase/client.key",
+        "_CB_CA_CERT_PATH": "/etc/couchbase/ca.crt",
+
+        "_comment_safety": "Defense-in-depth (Phase 1)",
+        "CB_MCP_READ_ONLY_MODE": "true",
+        "CB_MCP_DISABLED_TOOLS": "",
+        "CB_MCP_CONFIRMATION_REQUIRED_TOOLS": "",
+        "CB_MCP_ELICITATION_HINTS": "true",
+
+        "_comment_network": "HTTP retry/timeouts (Phase 2)",
+        "CB_MCP_HTTP_RETRIES": "3",
+        "CB_MCP_HTTP_TIMEOUT": "30",
+
+        "_comment_transport": "Default stdio. Set http to expose over network (deploy behind auth proxy).",
+        "CB_MCP_TRANSPORT": "stdio",
+        "_CB_MCP_HOST": "127.0.0.1",
+        "_CB_MCP_PORT": "8000"
+      }
+    }
+  }
+}
