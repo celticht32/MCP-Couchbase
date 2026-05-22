@@ -66,13 +66,13 @@ couchbase-mcp-server/
 │   ├── indexes.py                  # GSI index management
 │   ├── search_admin.py             # FTS index administration
 │   ├── stats.py                    # Metrics, events, settings
-│   ├── diagnostics.py              # Phase 4: schema, advisor, EXPLAIN, perf
-│   ├── eight_x.py                  # Phase 5: 8.x-only tools (vector idx, lock, conflicts)
-│   ├── extended.py                 # Phase 6b: transactions, Analytics, Backup
-│   ├── eventing.py                 # Phase 6c: Eventing service
-│   ├── synonyms.py                 # Phase 5 def: 8.x FTS synonym docs
-│   ├── encryption.py               # Phase 5 def: DARE + KMIP
-│   └── capella.py                  # Phase 7: Capella v4 control plane (read-only)
+│   ├── diagnostics.py              # schema, advisor, EXPLAIN, perf
+│   ├── eight_x.py                  # 8.x-only tools (vector idx, lock, conflicts)
+│   ├── extended.py                 # transactions, Analytics, Backup
+│   ├── eventing.py                 # Eventing service
+│   ├── synonyms.py                 # def: 8.x FTS synonym docs
+│   ├── encryption.py               # def: DARE + KMIP
+│   └── capella.py                  # Capella v4 control plane (read-only)
 └── tests/                          # 223 unit tests covering all phases
     ├── test_safety.py
     ├── test_admin_request.py
