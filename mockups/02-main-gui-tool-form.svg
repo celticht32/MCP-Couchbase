@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 720" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif">
+  <defs>
+    <style>
+      .bg { fill: #0a0c10; }
+      .surface { fill: #111318; }
+      .surface2 { fill: #181c24; }
+      .border { stroke: #232838; fill: none; }
+      .text { fill: #e8eaf0; }
+      .text2 { fill: #8892aa; }
+      .text3 { fill: #5a637a; }
+      .mono { font: 400 11px 'DM Mono', monospace; fill: #8892aa; }
+      .mono-em { font: 500 12px 'DM Mono', monospace; fill: #e8eaf0; }
+      .json-key { fill: #38d9c0; }
+      .json-str { fill: #69f0ae; }
+      .json-num { fill: #f0a500; }
+      .json-bool { fill: #e040fb; }
+      .ttl { font: 700 13px 'Syne', sans-serif; fill: #e8eaf0; }
+      .h2 { font: 700 18px 'Syne', sans-serif; fill: #e8eaf0; }
+      .label { font: 500 11px 'Syne', sans-serif; fill: #8892aa; letter-spacing: 1px; }
+      .placeholder { fill: #5a637a; font-style: italic; }
+    </style>
+  </defs>
+  <rect class="bg" width="1200" height="720"/>
+
+  <!-- Sidebar (collapsed shown) -->
+  <rect class="surface" x="0" y="0" width="280" height="720"/>
+  <line class="border" x1="280" y1="0" x2="280" y2="720"/>
+
+  <rect fill="#e8423a" x="20" y="20" width="32" height="32" rx="8"/>
+  <text x="36" y="42" text-anchor="middle" fill="#fff" font-weight="700" font-size="14">CB</text>
+  <text x="62" y="34" class="ttl">Couchbase</text>
+  <text x="62" y="48" fill="#5a637a" font-size="10" letter-spacing="2">MCP CONSOLE</text>
+
+  <rect class="surface2" x="20" y="70" width="240" height="28" rx="6" stroke="#232838"/>
+  <text x="50" y="88" class="mono">vector</text>
+  <line x1="89" y1="86" x2="91" y2="86" stroke="#e8eaf0"/>
+
+  <!-- Filtered results in sidebar -->
+  <text x="20" y="130" class="label">VECTOR INDEXES</text>
+  <rect fill="#0d2a25" x="14" y="142" width="252" height="28" rx="4" stroke="#26a69a" stroke-width="0.5"/>
+  <text x="22" y="160" fill="#26a69a" font-size="12" font-family="'DM Mono', monospace">admin_vector_index_create_</text>
+  <text x="22" y="174" fill="#26a69a" font-size="12" font-family="'DM Mono', monospace">  hyperscale</text>
+
+  <rect fill="#0d2a25" x="14" y="190" width="252" height="28" rx="4" stroke="#26a69a" stroke-width="0.5"/>
+  <text x="22" y="208" fill="#26a69a" font-size="12" font-family="'DM Mono', monospace">admin_vector_index_create_</text>
+  <text x="22" y="222" fill="#26a69a" font-size="12" font-family="'DM Mono', monospace">  composite</text>
+
+  <!-- Top bar -->
+  <rect class="surface" x="280" y="0" width="920" height="56"/>
+  <line class="border" x1="280" y1="56" x2="1200" y2="56"/>
+  <rect fill="#0d2a25" x="304" y="14" width="160" height="28" rx="14"/>
+  <text x="316" y="32" class="mono" fill="#26a69a">⬡ Vector Indexes</text>
+  <text x="488" y="34" class="mono-em">admin_vector_index_create_hyperscale</text>
+
+  <!-- Form section -->
+  <text x="320" y="100" class="h2">Inputs</text>
+  <text x="320" y="120" class="mono">Create a HYPERSCALE VECTOR INDEX (8.x). Required: bucket, index name, field, dimension, similarity.</text>
+
+  <!-- Form fields -->
+  <g transform="translate(320,160)">
+    <text x="0" y="0" class="label">BUCKET_NAME *</text>
+    <rect class="surface2" x="0" y="10" width="380" height="32" rx="4" stroke="#232838"/>
+    <text x="12" y="32" class="mono-em">travel-sample</text>
+  </g>
+  <g transform="translate(720,160)">
+    <text x="0" y="0" class="label">INDEX_NAME *</text>
+    <rect class="surface2" x="0" y="10" width="380" height="32" rx="4" stroke="#232838"/>
+    <text x="12" y="32" class="mono-em">idx_emb_hotel_descriptions</text>
+  </g>
+
+  <g transform="translate(320,220)">
+    <text x="0" y="0" class="label">SCOPE_NAME</text>
+    <rect class="surface2" x="0" y="10" width="180" height="32" rx="4" stroke="#232838"/>
+    <text x="12" y="32" class="placeholder">_default</text>
+  </g>
+  <g transform="translate(520,220)">
+    <text x="0" y="0" class="label">COLLECTION_NAME</text>
+    <rect class="surface2" x="0" y="10" width="180" height="32" rx="4" stroke="#232838"/>
+    <text x="12" y="32" class="mono-em">hotel</text>
+  </g>
+  <g transform="translate(720,220)">
+    <text x="0" y="0" class="label">FIELD_NAME *</text>
+    <rect class="surface2" x="0" y="10" width="380" height="32" rx="4" stroke="#232838"/>
+    <text x="12" y="32" class="mono-em">description_embedding</text>
+  </g>
+
+  <g transform="translate(320,280)">
+    <text x="0" y="0" class="label">DIMENSION *</text>
+    <rect class="surface2" x="0" y="10" width="180" height="32" rx="4" stroke="#232838"/>
+    <text x="12" y="32" class="mono-em" fill="#f0a500">1536</text>
+  </g>
+  <g transform="translate(520,280)">
+    <text x="0" y="0" class="label">SIMILARITY *  (enum dropdown)</text>
+    <rect class="surface2" x="0" y="10" width="280" height="32" rx="4" stroke="#26a69a"/>
+    <text x="12" y="32" class="mono-em">COSINE</text>
+    <text x="260" y="32" class="mono" fill="#5a637a">▾</text>
+  </g>
+  <g transform="translate(820,280)">
+    <text x="0" y="0" class="label">DEFER_BUILD  (boolean toggle)</text>
+    <rect fill="#181c24" x="0" y="10" width="48" height="22" rx="11" stroke="#232838"/>
+    <circle fill="#5a637a" cx="14" cy="21" r="8"/>
+    <text x="58" y="26" class="mono">false</text>
+  </g>
+
+  <!-- Run button -->
+  <rect fill="#e8423a" x="320" y="350" width="120" height="36" rx="4"/>
+  <text x="380" y="372" text-anchor="middle" fill="#fff" font-weight="700" font-family="'Syne', sans-serif">▶ Run tool</text>
+  <text x="460" y="372" class="mono" fill="#5a637a">Last run: 2.4s ago · 184 ms</text>
+
+  <!-- Output panel -->
+  <line class="border" x1="280" y1="410" x2="1200" y2="410"/>
+  <text x="320" y="440" class="h2">Result</text>
+  <rect fill="#3dd68c" x="384" y="424" width="56" height="18" rx="9"/>
+  <text x="412" y="437" text-anchor="middle" fill="#0a1f15" font-weight="700" font-size="10">SUCCESS</text>
+  <text x="450" y="438" class="mono" fill="#5a637a">184 ms · 1 row</text>
+
+  <!-- JSON output -->
+  <rect class="surface" x="320" y="460" width="860" height="240" rx="6" stroke="#232838"/>
+  <text x="340" y="488" font-family="'DM Mono', monospace" font-size="12">
+    <tspan x="340" dy="0" fill="#e8eaf0">{</tspan>
+    <tspan x="340" dy="20" class="json-key">  "rows":</tspan> <tspan fill="#e8eaf0">[],</tspan>
+    <tspan x="340" dy="20" class="json-key">  "count":</tspan> <tspan class="json-num"> 0,</tspan>
+    <tspan x="340" dy="20" class="json-key">  "statement":</tspan> <tspan class="json-str"> "CREATE HYPERSCALE VECTOR INDEX `idx_emb_hotel_descriptions`</tspan>
+    <tspan x="340" dy="20" class="json-str">                       ON `travel-sample`.`_default`.`hotel`(`description_embedding` VECTOR)</tspan>
+    <tspan x="340" dy="20" class="json-str">                       WITH {\"dimension\": 1536, \"similarity\": \"COSINE\"}"</tspan>
+    <tspan x="340" dy="20" fill="#e8eaf0">}</tspan>
+  </text>
+
+  <!-- bottom hint -->
+  <text x="340" y="690" class="mono" font-size="10" fill="#5a637a">Generated form from inputSchema · 6 fields · 4 required · enum SIMILARITY · boolean DEFER_BUILD</text>
+</svg>

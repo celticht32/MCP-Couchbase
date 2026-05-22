@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 720" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif">
+  <defs>
+    <style>
+      .bg { fill: #0a0c10; }
+      .surface { fill: #111318; }
+      .surface2 { fill: #181c24; }
+      .border { stroke: #232838; fill: none; }
+      .text { fill: #e8eaf0; }
+      .label { font: 500 11px 'Syne', sans-serif; fill: #8892aa; letter-spacing: 1px; }
+      .mono { font: 400 11px 'DM Mono', monospace; fill: #8892aa; }
+      .mono-em { font: 500 12px 'DM Mono', monospace; fill: #e8eaf0; }
+      .h2 { font: 700 18px 'Syne', sans-serif; fill: #e8eaf0; }
+      .lead { font: 400 13px 'Syne', sans-serif; fill: #8892aa; }
+    </style>
+  </defs>
+  <rect class="bg" width="1200" height="720"/>
+
+  <!-- Backdrop dim -->
+  <rect class="surface" x="0" y="0" width="280" height="720" opacity="0.4"/>
+  <rect x="280" y="0" width="920" height="720" fill="#000" opacity="0.45"/>
+
+  <!-- Modal -->
+  <rect class="surface" x="350" y="120" width="500" height="480" rx="8" stroke="#232838"/>
+
+  <!-- Modal header -->
+  <text x="380" y="160" class="h2">Capella API Connection</text>
+  <text x="380" y="184" class="lead">Settings persist for this session. The API key secret is</text>
+  <text x="380" y="200" class="lead">never echoed back from the server.</text>
+
+  <line class="border" x1="350" y1="220" x2="850" y2="220"/>
+
+  <!-- API Key Secret field (wide) -->
+  <g transform="translate(380,250)">
+    <text x="0" y="0" class="label">API KEY SECRET *</text>
+    <rect class="surface2" x="0" y="10" width="440" height="34" rx="4" stroke="#38d9c0"/>
+    <text x="12" y="32" class="mono-em">••••••••••••••••••••••••</text>
+    <text x="0" y="64" class="mono" font-size="10" fill="#5a637a">From Capella UI → Settings → API Keys → Create API Key</text>
+    <text x="0" y="78" class="mono" font-size="10" fill="#5a637a">The secret is shown ONCE on creation — store it in a password manager</text>
+  </g>
+
+  <!-- Base URL -->
+  <g transform="translate(380,360)">
+    <text x="0" y="0" class="label">BASE URL</text>
+    <rect class="surface2" x="0" y="10" width="440" height="32" rx="4" stroke="#232838"/>
+    <text x="12" y="32" class="mono-em">https://cloudapi.cloud.couchbase.com</text>
+  </g>
+
+  <!-- Timeout + Retries side by side -->
+  <g transform="translate(380,420)">
+    <text x="0" y="0" class="label">HTTP TIMEOUT (s)</text>
+    <rect class="surface2" x="0" y="10" width="200" height="32" rx="4" stroke="#232838"/>
+    <text x="12" y="32" class="mono-em">30</text>
+  </g>
+  <g transform="translate(620,420)">
+    <text x="0" y="0" class="label">HTTP RETRIES</text>
+    <rect class="surface2" x="0" y="10" width="200" height="32" rx="4" stroke="#232838"/>
+    <text x="12" y="32" class="mono-em">3</text>
+  </g>
+
+  <line class="border" x1="350" y1="510" x2="850" y2="510"/>
+
+  <!-- Buttons -->
+  <rect fill="#181c24" x="380" y="530" width="120" height="36" rx="4" stroke="#232838"/>
+  <text x="440" y="554" text-anchor="middle" class="mono" fill="#8892aa">Cancel</text>
+
+  <rect fill="#38d9c0" x="700" y="530" width="120" height="36" rx="4"/>
+  <text x="760" y="554" text-anchor="middle" font-family="'Syne', sans-serif" font-weight="700" fill="#0a1f15">Apply</text>
+
+  <!-- Footnote in modal -->
+  <text x="380" y="582" class="mono" font-size="10" fill="#5a637a">Note: Capella tools work without any CB_* env vars (those are for the cluster GUI under ../gui/)</text>
+</svg>
