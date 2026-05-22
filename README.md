@@ -4,7 +4,31 @@ A Python MCP (Model Context Protocol) server exposing the **full Couchbase data-
 
 ---
 
-## Tool Summary (75+ tools across 9 categories)
+## Status — substantially hardened
+
+This server has been hardened across **seven phases** beyond the original tool surface. The tool catalogue and category breakdown below describe the original baseline; the live state is **164 tools across 16 handler modules with 223 unit tests**.
+
+Highlights of what's been added:
+
+- **Safety primitives** — read-only mode by default, destructive-tool confirmation gate, MCP `ToolAnnotations` on every tool, SQL++ DML detection, index DDL validation.
+- **Engineering fixes** — HTTP retries with exponential backoff, unified admin REST client, structured `err()` responses, cluster version detection with caching.
+- **Auth & transport** — mTLS support, Streamable HTTP transport in addition to stdio.
+- **Diagnostics** — `cb_get_schema_for_collection`, `cb_index_advisor`, `cb_explain_query` with parsed findings, query performance analyzers.
+- **Couchbase 8.x first-class tools** — hyperscale and composite vector index helpers, user lock/unlock, temporary passwords, XDCR conflict log readback, per-user query stats. All gated to 8.x via `_require_8x()`.
+- **KV durability and subdocument ops** — optional `durability`/`expiry_seconds`/`cas` on existing CRUD tools (backwards-compatible), plus `cb_lookup_in` / `cb_mutate_in` for per-path reads and atomic mutations.
+- **Multi-document transactions** — `cb_transaction_run` wrapping `cluster.transactions.run` with a serialized op list (write-batch pattern).
+- **Analytics, Backup/Restore, Eventing** service surfaces.
+- **FTS synonym set documents** (8.x) with schema validation.
+- **DARE / KMIP** configuration tools.
+- **Capella v4 control plane** read-only tools — separate auth (Bearer token), separate base URL (`cloudapi.cloud.couchbase.com`), 16 read-only tools across organizations / projects / clusters / users / allowlists / API keys / app services.
+
+**See [`CHANGES.md`](./CHANGES.md) for the complete per-phase narrative**, the full tool list with classification, environment variables, breaking-change notes (there are none — all additions are strictly additive), and known caveats including REST-path assumptions that haven't been validated against every Couchbase patch level.
+
+The skill packs for Claude — `couchbase-7x` and `couchbase-8x` — guide an LLM through using these tools correctly. Each has a `references/new-tools.md` that catalogs additions since the original skill release.
+
+---
+
+## Tool Summary (original baseline; see CHANGES.md for the full 164-tool catalogue)
 
 | Category | Prefix | Count | Covers |
 |---|---|---|---|
@@ -24,22 +48,41 @@ A Python MCP (Model Context Protocol) server exposing the **full Couchbase data-
 
 ```
 couchbase-mcp-server/
-├── server.py               # MCP entry point — composes all handlers
+├── server.py                       # MCP entry point — composes all handlers
 ├── requirements.txt
-├── claude_desktop_config.json
+├── claude_desktop_config.example.json
 ├── README.md
-└── handlers/
-    ├── __init__.py
-    ├── shared.py           # SDK connection, HTTP admin client, ok/err helpers
-    ├── data.py             # CRUD, N1QL, FTS search, ping
-    ├── buckets.py          # Bucket management + sample buckets
-    ├── collections.py      # Scopes and collections
-    ├── security.py         # Users, groups, RBAC, audit, password policy, TLS
-    ├── cluster.py          # Cluster info, nodes, rebalance, failover, server groups, alerts
-    ├── xdcr.py             # Cross-datacenter replication
-    ├── indexes.py          # GSI index management
-    ├── search_admin.py     # FTS index administration
-    └── stats.py            # Metrics, events, diagnostics, query/index service settings
+├── CHANGES.md                      # Per-phase changelog (READ THIS)
+├── .gitignore
+├── handlers/
+│   ├── __init__.py
+│   ├── shared.py                   # SDK conn, HTTP admin client, retries, mTLS, version detection
+│   ├── data.py                     # CRUD + N1QL + FTS + subdoc (Phase 6a) + durability
+│   ├── buckets.py                  # Bucket management + sample buckets
+│   ├── collections.py              # Scopes and collections
+│   ├── security.py                 # Users, groups, RBAC, audit
+│   ├── cluster.py                  # Cluster info, nodes, rebalance, failover
+│   ├── xdcr.py                     # Cross-datacenter replication
+│   ├── indexes.py                  # GSI index management
+│   ├── search_admin.py             # FTS index administration
+│   ├── stats.py                    # Metrics, events, settings
+│   ├── diagnostics.py              # Phase 4: schema, advisor, EXPLAIN, perf
+│   ├── eight_x.py                  # Phase 5: 8.x-only tools (vector idx, lock, conflicts)
+│   ├── extended.py                 # Phase 6b: transactions, Analytics, Backup
+│   ├── eventing.py                 # Phase 6c: Eventing service
+│   ├── synonyms.py                 # Phase 5 def: 8.x FTS synonym docs
+│   ├── encryption.py               # Phase 5 def: DARE + KMIP
+│   └── capella.py                  # Phase 7: Capella v4 control plane (read-only)
+└── tests/                          # 223 unit tests covering all phases
+    ├── test_safety.py
+    ├── test_admin_request.py
+    ├── test_index_hardening.py
+    ├── test_diagnostics.py
+    ├── test_eight_x.py
+    ├── test_subdoc.py
+    ├── test_extended.py
+    ├── test_eventing.py
+    └── test_phase5_phase7.py
 ```
 
 ---

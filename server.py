@@ -16,6 +16,19 @@ Tool categories (all upstream names preserved)
   Indexes    - GSI create/drop/build, settings  (admin_index_*)
   FTS Admin  - FTS index CRUD + stats           (admin_fts_*)
   Stats      - metrics, events, internal        (admin_stats_*, admin_*)
+  Diagnostics- schema, advisor, EXPLAIN, perf   (cb_get_schema_for_collection,
+                                                  cb_index_advisor, cb_explain_query,
+                                                  cb_perf_*)
+  8.x-only   - vector indexes, lock, conflicts  (admin_vector_index_create_*,
+                                                  admin_user_lock/unlock/create_temporary,
+                                                  admin_xdcr_conflict_log_query,
+                                                  cb_perf_by_user)
+  Extended   - transactions, Analytics, Backup  (cb_transaction_run,
+                                                  cb_analytics_query, admin_backup_*)
+  Eventing   - function lifecycle, deploy, stats (admin_eventing_*)
+  Synonyms   - FTS synonym set documents (8.x)   (cb_fts_synonym_*)
+  Encryption - DARE + KMIP                       (admin_encryption_*, admin_kmip_*)
+  Capella v4 - SaaS control plane (read-only)    (capella_*)
 
 Environment variables
 ─────────────────────
@@ -69,13 +82,20 @@ from mcp.types import Tool, TextContent
 
 from handlers import (
     buckets,
+    capella,
     cluster,
     collections,
     data,
+    diagnostics,
+    eight_x,
+    encryption,
+    eventing,
+    extended,
     indexes,
     search_admin,
     security,
     stats,
+    synonyms,
     xdcr,
 )
 from handlers.shared import (
@@ -99,6 +119,13 @@ _RAW_TOOLS: list[Tool] = (
     + indexes.TOOLS
     + search_admin.TOOLS
     + stats.TOOLS
+    + diagnostics.TOOLS
+    + eight_x.TOOLS
+    + extended.TOOLS
+    + eventing.TOOLS
+    + synonyms.TOOLS
+    + encryption.TOOLS
+    + capella.TOOLS
 )
 
 _HANDLERS = {
@@ -111,11 +138,18 @@ _HANDLERS = {
     **{t.name: indexes for t in indexes.TOOLS},
     **{t.name: search_admin for t in search_admin.TOOLS},
     **{t.name: stats for t in stats.TOOLS},
+    **{t.name: diagnostics for t in diagnostics.TOOLS},
+    **{t.name: eight_x for t in eight_x.TOOLS},
+    **{t.name: extended for t in extended.TOOLS},
+    **{t.name: eventing for t in eventing.TOOLS},
+    **{t.name: synonyms for t in synonyms.TOOLS},
+    **{t.name: encryption for t in encryption.TOOLS},
+    **{t.name: capella for t in capella.TOOLS},
 }
 
 # Tools that stay loaded in read-only mode despite destructiveHint=true,
 # because they enforce read-only behavior internally (e.g. cb_query rejects DML).
-_ALWAYS_LOADED_IN_READ_ONLY: set[str] = {"cb_query"}
+_ALWAYS_LOADED_IN_READ_ONLY: set[str] = {"cb_query", "cb_analytics_query"}
 
 
 def _is_read_only(t: Tool) -> bool:
@@ -143,8 +177,10 @@ _DEFAULT_CONFIRMATION = {
     t.name for t in _TOOLS if t.annotations and t.annotations.destructiveHint
 }
 _CONFIRMATION_REQUIRED: set[str] = get_confirmation_required(_DEFAULT_CONFIRMATION)
-# cb_query is "destructive in spec" but has internal DML blocking; don't double-gate.
+# cb_query and cb_analytics_query are "destructive in spec" but have internal
+# DML blocking; don't double-gate.
 _CONFIRMATION_REQUIRED.discard("cb_query")
+_CONFIRMATION_REQUIRED.discard("cb_analytics_query")
 
 
 # ── MCP server ───────────────────────────────────────────────────────────────

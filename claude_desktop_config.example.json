@@ -30,7 +30,13 @@
         "_comment_transport": "Default stdio. Set http to expose over network (deploy behind auth proxy).",
         "CB_MCP_TRANSPORT": "stdio",
         "_CB_MCP_HOST": "127.0.0.1",
-        "_CB_MCP_PORT": "8000"
+        "_CB_MCP_PORT": "8000",
+
+        "_comment_capella": "Phase 7: Capella v4 control plane (read-only). Set CAPELLA_API_KEY_SECRET to enable the capella_* tools. The rest of the MCP works without it.",
+        "_CAPELLA_API_KEY_SECRET": "paste-secret-from-Capella-UI-Settings-API-Keys",
+        "_CAPELLA_BASE_URL": "https://cloudapi.cloud.couchbase.com",
+        "_CAPELLA_HTTP_TIMEOUT": "30",
+        "_CAPELLA_HTTP_RETRIES": "3"
       }
     }
   }
