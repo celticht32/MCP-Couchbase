@@ -7,10 +7,9 @@ Changes from upstream:
 
 from __future__ import annotations
 
-from mcp.types import Tool, TextContent, ToolAnnotations
+from mcp.types import TextContent, Tool, ToolAnnotations
 
-from .shared import admin_request, admin_request_json, err, ok
-
+from .shared import admin_request, admin_request_json, err, ok, quote_path
 
 TOOLS: list[Tool] = [
     Tool(
@@ -18,7 +17,9 @@ TOOLS: list[Tool] = [
         description="List all Full-Text Search indexes.",
         inputSchema={"type": "object", "properties": {}},
         annotations=ToolAnnotations(
-            readOnlyHint=True, destructiveHint=False, idempotentHint=True,
+            readOnlyHint=True,
+            destructiveHint=False,
+            idempotentHint=True,
         ),
     ),
     Tool(
@@ -30,7 +31,9 @@ TOOLS: list[Tool] = [
             "required": ["index_name"],
         },
         annotations=ToolAnnotations(
-            readOnlyHint=True, destructiveHint=False, idempotentHint=True,
+            readOnlyHint=True,
+            destructiveHint=False,
+            idempotentHint=True,
         ),
     ),
     Tool(
@@ -53,7 +56,9 @@ TOOLS: list[Tool] = [
             "required": ["index_name", "definition"],
         },
         annotations=ToolAnnotations(
-            readOnlyHint=False, destructiveHint=False, idempotentHint=True,
+            readOnlyHint=False,
+            destructiveHint=False,
+            idempotentHint=True,
         ),
     ),
     Tool(
@@ -68,7 +73,9 @@ TOOLS: list[Tool] = [
             "required": ["index_name"],
         },
         annotations=ToolAnnotations(
-            readOnlyHint=False, destructiveHint=True, idempotentHint=True,
+            readOnlyHint=False,
+            destructiveHint=True,
+            idempotentHint=True,
         ),
     ),
     Tool(
@@ -80,7 +87,9 @@ TOOLS: list[Tool] = [
             "required": ["index_name"],
         },
         annotations=ToolAnnotations(
-            readOnlyHint=True, destructiveHint=False, idempotentHint=True,
+            readOnlyHint=True,
+            destructiveHint=False,
+            idempotentHint=True,
         ),
     ),
     Tool(
@@ -92,7 +101,9 @@ TOOLS: list[Tool] = [
             "required": ["index_name"],
         },
         annotations=ToolAnnotations(
-            readOnlyHint=True, destructiveHint=False, idempotentHint=True,
+            readOnlyHint=True,
+            destructiveHint=False,
+            idempotentHint=True,
         ),
     ),
     Tool(
@@ -104,7 +115,9 @@ TOOLS: list[Tool] = [
             "required": ["index_name"],
         },
         annotations=ToolAnnotations(
-            readOnlyHint=False, destructiveHint=False, idempotentHint=True,
+            readOnlyHint=False,
+            destructiveHint=False,
+            idempotentHint=True,
         ),
     ),
     Tool(
@@ -116,7 +129,9 @@ TOOLS: list[Tool] = [
             "required": ["index_name"],
         },
         annotations=ToolAnnotations(
-            readOnlyHint=False, destructiveHint=False, idempotentHint=True,
+            readOnlyHint=False,
+            destructiveHint=False,
+            idempotentHint=True,
         ),
     ),
     Tool(
@@ -124,7 +139,9 @@ TOOLS: list[Tool] = [
         description="Get global FTS (Search service) settings.",
         inputSchema={"type": "object", "properties": {}},
         annotations=ToolAnnotations(
-            readOnlyHint=True, destructiveHint=False, idempotentHint=True,
+            readOnlyHint=True,
+            destructiveHint=False,
+            idempotentHint=True,
         ),
     ),
 ]
@@ -136,39 +153,34 @@ def handle(name: str, args: dict) -> list[TextContent]:
             return ok(admin_request("GET", "/api/index"))
 
         if name == "admin_fts_index_get":
-            return ok(admin_request("GET", f"/api/index/{args['index_name']}"))
+            ix = quote_path(args["index_name"])
+            return ok(admin_request("GET", f"/api/index/{ix}"))
 
         if name == "admin_fts_index_create":
             defn = args["definition"]
             defn.setdefault("name", args["index_name"])
-            return ok(
-                admin_request_json(
-                    "PUT", f"/api/index/{args['index_name']}", payload=defn
-                )
-            )
+            ix = quote_path(args["index_name"])
+            return ok(admin_request_json("PUT", f"/api/index/{ix}", payload=defn))
 
         if name == "admin_fts_index_delete":
-            return ok(admin_request("DELETE", f"/api/index/{args['index_name']}"))
+            ix = quote_path(args["index_name"])
+            return ok(admin_request("DELETE", f"/api/index/{ix}"))
 
         if name == "admin_fts_index_stats":
-            return ok(admin_request("GET", f"/api/index/{args['index_name']}/stats"))
+            ix = quote_path(args["index_name"])
+            return ok(admin_request("GET", f"/api/index/{ix}/stats"))
 
         if name == "admin_fts_index_doc_count":
-            return ok(admin_request("GET", f"/api/index/{args['index_name']}/count"))
+            ix = quote_path(args["index_name"])
+            return ok(admin_request("GET", f"/api/index/{ix}/count"))
 
         if name == "admin_fts_index_ingest_pause":
-            return ok(
-                admin_request(
-                    "POST", f"/api/index/{args['index_name']}/ingestControl/pause"
-                )
-            )
+            ix = quote_path(args["index_name"])
+            return ok(admin_request("POST", f"/api/index/{ix}/ingestControl/pause"))
 
         if name == "admin_fts_index_ingest_resume":
-            return ok(
-                admin_request(
-                    "POST", f"/api/index/{args['index_name']}/ingestControl/resume"
-                )
-            )
+            ix = quote_path(args["index_name"])
+            return ok(admin_request("POST", f"/api/index/{ix}/ingestControl/resume"))
 
         if name == "admin_fts_settings_get":
             return ok(admin_request("GET", "/api/cfg"))

@@ -7,10 +7,9 @@ Changes from upstream:
 
 from __future__ import annotations
 
-from mcp.types import Tool, TextContent, ToolAnnotations
+from mcp.types import TextContent, Tool, ToolAnnotations
 
-from .shared import admin_request, err, ok
-
+from .shared import admin_request, err, ok, quote_path
 
 TOOLS: list[Tool] = [
     Tool(
@@ -22,7 +21,9 @@ TOOLS: list[Tool] = [
             "required": ["bucket_name"],
         },
         annotations=ToolAnnotations(
-            readOnlyHint=True, destructiveHint=False, idempotentHint=True,
+            readOnlyHint=True,
+            destructiveHint=False,
+            idempotentHint=True,
         ),
     ),
     Tool(
@@ -37,7 +38,9 @@ TOOLS: list[Tool] = [
             "required": ["bucket_name", "scope_name"],
         },
         annotations=ToolAnnotations(
-            readOnlyHint=False, destructiveHint=False, idempotentHint=False,
+            readOnlyHint=False,
+            destructiveHint=False,
+            idempotentHint=False,
         ),
     ),
     Tool(
@@ -53,7 +56,9 @@ TOOLS: list[Tool] = [
             "required": ["bucket_name", "scope_name"],
         },
         annotations=ToolAnnotations(
-            readOnlyHint=False, destructiveHint=True, idempotentHint=True,
+            readOnlyHint=False,
+            destructiveHint=True,
+            idempotentHint=True,
         ),
     ),
     Tool(
@@ -73,7 +78,9 @@ TOOLS: list[Tool] = [
             "required": ["bucket_name", "scope_name", "collection_name"],
         },
         annotations=ToolAnnotations(
-            readOnlyHint=False, destructiveHint=False, idempotentHint=False,
+            readOnlyHint=False,
+            destructiveHint=False,
+            idempotentHint=False,
         ),
     ),
     Tool(
@@ -90,7 +97,9 @@ TOOLS: list[Tool] = [
             "required": ["bucket_name", "scope_name", "collection_name"],
         },
         annotations=ToolAnnotations(
-            readOnlyHint=False, destructiveHint=True, idempotentHint=True,
+            readOnlyHint=False,
+            destructiveHint=True,
+            idempotentHint=True,
         ),
     ),
 ]
@@ -98,9 +107,9 @@ TOOLS: list[Tool] = [
 
 def handle(name: str, args: dict) -> list[TextContent]:
     try:
-        b = args.get("bucket_name", "")
-        s = args.get("scope_name", "")
-        c = args.get("collection_name", "")
+        b = quote_path(args.get("bucket_name", ""))
+        s = quote_path(args.get("scope_name", ""))
+        c = quote_path(args.get("collection_name", ""))
 
         if name == "admin_scope_list":
             return ok(admin_request("GET", f"/pools/default/buckets/{b}/scopes/"))
@@ -108,7 +117,9 @@ def handle(name: str, args: dict) -> list[TextContent]:
         if name == "admin_scope_create":
             return ok(
                 admin_request(
-                    "POST", f"/pools/default/buckets/{b}/scopes", data={"name": s}
+                    "POST",
+                    f"/pools/default/buckets/{b}/scopes",
+                    data={"name": args["scope_name"]},
                 )
             )
 
@@ -116,9 +127,9 @@ def handle(name: str, args: dict) -> list[TextContent]:
             return ok(admin_request("DELETE", f"/pools/default/buckets/{b}/scopes/{s}"))
 
         if name == "admin_collection_create":
-            data = {"name": c}
+            data = {"name": args["collection_name"]}
             if args.get("maxTTL") is not None:
-                data["maxTTL"] = str(args["maxTTL"])
+                data["maxTTL"] = int(args["maxTTL"])
             return ok(
                 admin_request(
                     "POST",

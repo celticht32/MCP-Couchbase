@@ -1,0 +1,58 @@
+# Version control
+.git/
+.gitignore
+.gitattributes
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+.eggs/
+dist/
+build/
+*.egg
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# uv
+.uv/
+uv.lock
+
+# Test / lint caches
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+.coverage.*
+htmlcov/
+
+# Tests aren't needed in the runtime image
+tests/
+
+# IDE / editor
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Project housekeeping (not for image)
+README.md
+HANDOFF.md
+*.docx
+*.zip
+celticht32-MCP-Couchbase-merged.tar.gz
+docker-compose*.yml
+Dockerfile
+.dockerignore
+.pre-commit-config.yaml
+disabled_tools.txt

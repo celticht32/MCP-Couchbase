@@ -32,9 +32,8 @@ infrastructure).
 from __future__ import annotations
 
 import re
-from typing import Any
 
-from mcp.types import Tool, TextContent, ToolAnnotations
+from mcp.types import TextContent, Tool, ToolAnnotations
 
 from .shared import (
     admin_request,
@@ -42,8 +41,8 @@ from .shared import (
     get_sdk_connection,
     is_8x,
     ok,
+    quote_path,
 )
-
 
 # ── Version gate ─────────────────────────────────────────────────────────────
 
@@ -95,8 +94,13 @@ def _validate_similarity(sim: str, tool: str) -> list[TextContent] | None:
     return None
 
 
-def _with_clause(dimension: int, similarity: str, description: str | None,
-                 num_replica: int | None, defer_build: bool | None) -> str:
+def _with_clause(
+    dimension: int,
+    similarity: str,
+    description: str | None,
+    num_replica: int | None,
+    defer_build: bool | None,
+) -> str:
     """Build the WITH {...} clause for a vector index. JSON-escapes string values."""
     import json
 
@@ -129,7 +133,10 @@ TOOLS: list[Tool] = [
             "properties": {
                 "bucket_name": {"type": "string"},
                 "scope_name": {"type": "string", "description": "default: _default"},
-                "collection_name": {"type": "string", "description": "default: _default"},
+                "collection_name": {
+                    "type": "string",
+                    "description": "default: _default",
+                },
                 "index_name": {"type": "string"},
                 "field_name": {
                     "type": "string",
@@ -148,11 +155,17 @@ TOOLS: list[Tool] = [
                 "defer_build": {"type": "boolean"},
             },
             "required": [
-                "bucket_name", "index_name", "field_name", "dimension", "similarity",
+                "bucket_name",
+                "index_name",
+                "field_name",
+                "dimension",
+                "similarity",
             ],
         },
         annotations=ToolAnnotations(
-            readOnlyHint=False, destructiveHint=False, idempotentHint=False,
+            readOnlyHint=False,
+            destructiveHint=False,
+            idempotentHint=False,
         ),
     ),
     Tool(
@@ -194,12 +207,18 @@ TOOLS: list[Tool] = [
                 "defer_build": {"type": "boolean"},
             },
             "required": [
-                "bucket_name", "index_name", "scalar_fields", "vector_field",
-                "dimension", "similarity",
+                "bucket_name",
+                "index_name",
+                "scalar_fields",
+                "vector_field",
+                "dimension",
+                "similarity",
             ],
         },
         annotations=ToolAnnotations(
-            readOnlyHint=False, destructiveHint=False, idempotentHint=False,
+            readOnlyHint=False,
+            destructiveHint=False,
+            idempotentHint=False,
         ),
     ),
     # ── User lock / unlock / temporary password ─────────────────────────
@@ -219,7 +238,9 @@ TOOLS: list[Tool] = [
             "required": ["username"],
         },
         annotations=ToolAnnotations(
-            readOnlyHint=False, destructiveHint=True, idempotentHint=True,
+            readOnlyHint=False,
+            destructiveHint=True,
+            idempotentHint=True,
         ),
     ),
     Tool(
@@ -234,7 +255,9 @@ TOOLS: list[Tool] = [
             "required": ["username"],
         },
         annotations=ToolAnnotations(
-            readOnlyHint=False, destructiveHint=False, idempotentHint=True,
+            readOnlyHint=False,
+            destructiveHint=False,
+            idempotentHint=True,
         ),
     ),
     Tool(
@@ -260,7 +283,9 @@ TOOLS: list[Tool] = [
             "required": ["username", "password", "roles"],
         },
         annotations=ToolAnnotations(
-            readOnlyHint=False, destructiveHint=False, idempotentHint=True,
+            readOnlyHint=False,
+            destructiveHint=False,
+            idempotentHint=True,
         ),
     ),
     # ── XDCR conflict log readback ──────────────────────────────────────
@@ -290,7 +315,9 @@ TOOLS: list[Tool] = [
             "required": ["bucket_name"],
         },
         annotations=ToolAnnotations(
-            readOnlyHint=True, destructiveHint=False, idempotentHint=True,
+            readOnlyHint=True,
+            destructiveHint=False,
+            idempotentHint=True,
         ),
     ),
     # ── Per-user query stats ────────────────────────────────────────────
@@ -309,7 +336,9 @@ TOOLS: list[Tool] = [
             },
         },
         annotations=ToolAnnotations(
-            readOnlyHint=True, destructiveHint=False, idempotentHint=True,
+            readOnlyHint=True,
+            destructiveHint=False,
+            idempotentHint=True,
         ),
     ),
 ]
@@ -435,17 +464,17 @@ def _vec_composite(args: dict) -> list[TextContent]:
 
 
 def _user_lock(args: dict) -> list[TextContent]:
-    u = args["username"]
+    u = quote_path(args["username"])
     return ok(admin_request("POST", f"/settings/rbac/users/local/{u}/lock"))
 
 
 def _user_unlock(args: dict) -> list[TextContent]:
-    u = args["username"]
+    u = quote_path(args["username"])
     return ok(admin_request("POST", f"/settings/rbac/users/local/{u}/unlock"))
 
 
 def _user_temp(args: dict) -> list[TextContent]:
-    u = args["username"]
+    u = quote_path(args["username"])
     data = {
         "password": args["password"],
         "roles": args["roles"],
@@ -474,21 +503,21 @@ def _conflict_query(args: dict) -> list[TextContent]:
         ORDER BY META().id DESC
         LIMIT $lim
     """
-    result = cluster.query(
-        stmt, QueryOptions(named_parameters={"lim": limit})
-    )
+    result = cluster.query(stmt, QueryOptions(named_parameters={"lim": limit}))
     rows = list(result)
-    return ok({
-        "conflicts": rows,
-        "count": len(rows),
-        "keyspace": keyspace,
-        "note": (
-            "If this returns empty, verify the replication was created with "
-            "conflictLogging=true and conflictLoggingMapping pointing at this "
-            "bucket/scope/collection. Conflicts that occurred before logging "
-            "was enabled are not retrievable."
-        ),
-    })
+    return ok(
+        {
+            "conflicts": rows,
+            "count": len(rows),
+            "keyspace": keyspace,
+            "note": (
+                "If this returns empty, verify the replication was created with "
+                "conflictLogging=true and conflictLoggingMapping pointing at this "
+                "bucket/scope/collection. Conflicts that occurred before logging "
+                "was enabled are not retrievable."
+            ),
+        }
+    )
 
 
 def _perf_by_user(args: dict) -> list[TextContent]:
@@ -508,8 +537,6 @@ def _perf_by_user(args: dict) -> list[TextContent]:
         ORDER BY query_count DESC
         LIMIT $lim
     """
-    result = cluster.query(
-        stmt, QueryOptions(named_parameters={"lim": limit})
-    )
+    result = cluster.query(stmt, QueryOptions(named_parameters={"lim": limit}))
     rows = list(result)
     return ok({"users": rows, "count": len(rows)})

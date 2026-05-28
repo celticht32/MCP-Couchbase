@@ -8,12 +8,9 @@ Changes from upstream:
 
 from __future__ import annotations
 
-import urllib.parse
+from mcp.types import TextContent, Tool, ToolAnnotations
 
-from mcp.types import Tool, TextContent, ToolAnnotations
-
-from .shared import admin_request, err, ok
-
+from .shared import admin_request, err, ok, quote_path
 
 TOOLS: list[Tool] = [
     Tool(
@@ -21,7 +18,9 @@ TOOLS: list[Tool] = [
         description="List all registered remote cluster references.",
         inputSchema={"type": "object", "properties": {}},
         annotations=ToolAnnotations(
-            readOnlyHint=True, destructiveHint=False, idempotentHint=True,
+            readOnlyHint=True,
+            destructiveHint=False,
+            idempotentHint=True,
         ),
     ),
     Tool(
@@ -49,7 +48,9 @@ TOOLS: list[Tool] = [
             "required": ["name", "hostname", "username", "password"],
         },
         annotations=ToolAnnotations(
-            readOnlyHint=False, destructiveHint=False, idempotentHint=False,
+            readOnlyHint=False,
+            destructiveHint=False,
+            idempotentHint=False,
         ),
     ),
     Tool(
@@ -67,7 +68,9 @@ TOOLS: list[Tool] = [
             "required": ["cluster_name"],
         },
         annotations=ToolAnnotations(
-            readOnlyHint=False, destructiveHint=True, idempotentHint=True,
+            readOnlyHint=False,
+            destructiveHint=True,
+            idempotentHint=True,
         ),
     ),
     Tool(
@@ -75,7 +78,9 @@ TOOLS: list[Tool] = [
         description="List all XDCR replication settings / replications.",
         inputSchema={"type": "object", "properties": {}},
         annotations=ToolAnnotations(
-            readOnlyHint=True, destructiveHint=False, idempotentHint=True,
+            readOnlyHint=True,
+            destructiveHint=False,
+            idempotentHint=True,
         ),
     ),
     Tool(
@@ -92,18 +97,52 @@ TOOLS: list[Tool] = [
                 "toBucket": {"type": "string"},
                 "replicationType": {
                     "type": "string",
-                    "enum": ["continuous", "xmem"],
-                    "description": "Default: continuous",
+                    "enum": ["continuous"],
+                    "description": (
+                        "Always 'continuous' on modern Couchbase. Default: continuous."
+                    ),
+                },
+                "type": {
+                    "type": "string",
+                    "enum": ["xmem", "capi"],
+                    "description": (
+                        "Replication protocol. xmem (default) uses the memcached "
+                        "protocol; capi uses the REST protocol (legacy)."
+                    ),
+                },
+                "compressionType": {
+                    "type": "string",
+                    "enum": ["None", "Snappy", "Auto"],
+                    "description": "Compression for replication payload",
                 },
                 "filterExpression": {
                     "type": "string",
                     "description": "Optional N1QL-style filter",
                 },
+                "conflictLogging": {
+                    "type": "boolean",
+                    "description": (
+                        "Couchbase 8.x: enable conflict logging on this "
+                        "replication. Pairs with conflictLoggingMapping."
+                    ),
+                },
+                "conflictLoggingMapping": {
+                    "type": "object",
+                    "description": (
+                        "Couchbase 8.x: target bucket/scope/collection for "
+                        "the conflict log, e.g. "
+                        '{"bucket": "conflicts", "scope": "_default", '
+                        '"collection": "_default"}. Sent as a JSON string '
+                        "in the form body."
+                    ),
+                },
             },
             "required": ["fromBucket", "toCluster", "toBucket"],
         },
         annotations=ToolAnnotations(
-            readOnlyHint=False, destructiveHint=False, idempotentHint=False,
+            readOnlyHint=False,
+            destructiveHint=False,
+            idempotentHint=False,
         ),
     ),
     Tool(
@@ -120,7 +159,9 @@ TOOLS: list[Tool] = [
             "required": ["replication_id"],
         },
         annotations=ToolAnnotations(
-            readOnlyHint=False, destructiveHint=False, idempotentHint=True,
+            readOnlyHint=False,
+            destructiveHint=False,
+            idempotentHint=True,
         ),
     ),
     Tool(
@@ -132,7 +173,9 @@ TOOLS: list[Tool] = [
             "required": ["replication_id"],
         },
         annotations=ToolAnnotations(
-            readOnlyHint=False, destructiveHint=False, idempotentHint=True,
+            readOnlyHint=False,
+            destructiveHint=False,
+            idempotentHint=True,
         ),
     ),
     Tool(
@@ -147,7 +190,9 @@ TOOLS: list[Tool] = [
             "required": ["replication_id"],
         },
         annotations=ToolAnnotations(
-            readOnlyHint=False, destructiveHint=True, idempotentHint=True,
+            readOnlyHint=False,
+            destructiveHint=True,
+            idempotentHint=True,
         ),
     ),
     Tool(
@@ -155,7 +200,9 @@ TOOLS: list[Tool] = [
         description="Get global XDCR advanced settings.",
         inputSchema={"type": "object", "properties": {}},
         annotations=ToolAnnotations(
-            readOnlyHint=True, destructiveHint=False, idempotentHint=True,
+            readOnlyHint=True,
+            destructiveHint=False,
+            idempotentHint=True,
         ),
     ),
     Tool(
@@ -180,15 +227,17 @@ TOOLS: list[Tool] = [
             },
         },
         annotations=ToolAnnotations(
-            readOnlyHint=False, destructiveHint=False, idempotentHint=True,
+            readOnlyHint=False,
+            destructiveHint=False,
+            idempotentHint=True,
         ),
     ),
 ]
 
 
 def _enc_rep_id(rid: str) -> str:
-    """URL-encode a replication ID safely. Callers always pass the raw ID."""
-    return urllib.parse.quote(rid, safe="")
+    """URL-encode a replication ID. Backwards-compatible alias for quote_path."""
+    return quote_path(rid)
 
 
 def handle(name: str, args: dict) -> list[TextContent]:
@@ -205,17 +254,11 @@ def handle(name: str, args: dict) -> list[TextContent]:
             }
             if args.get("demandEncryption") is not None:
                 data["demandEncryption"] = str(args["demandEncryption"])
-            return ok(
-                admin_request("POST", "/pools/default/remoteClusters", data=data)
-            )
+            return ok(admin_request("POST", "/pools/default/remoteClusters", data=data))
 
         if name == "admin_xdcr_reference_delete":
-            return ok(
-                admin_request(
-                    "DELETE",
-                    f"/pools/default/remoteClusters/{args['cluster_name']}",
-                )
-            )
+            cname = quote_path(args["cluster_name"])
+            return ok(admin_request("DELETE", f"/pools/default/remoteClusters/{cname}"))
 
         if name == "admin_xdcr_replications_list":
             return ok(admin_request("GET", "/settings/replications/"))
@@ -227,8 +270,22 @@ def handle(name: str, args: dict) -> list[TextContent]:
                 "toBucket": args["toBucket"],
                 "replicationType": args.get("replicationType", "continuous"),
             }
+            # 'type' selects the wire protocol (xmem vs capi). Default is xmem.
+            if args.get("type"):
+                data["type"] = args["type"]
+            if args.get("compressionType"):
+                data["compressionType"] = args["compressionType"]
             if args.get("filterExpression"):
                 data["filterExpression"] = args["filterExpression"]
+            if args.get("conflictLogging") is not None:
+                data["conflictLogging"] = "true" if args["conflictLogging"] else "false"
+            if args.get("conflictLoggingMapping"):
+                # Form encoding requires a JSON string for nested objects.
+                import json as _json
+
+                data["conflictLoggingMapping"] = _json.dumps(
+                    args["conflictLoggingMapping"]
+                )
             return ok(admin_request("POST", "/controller/createReplication", data=data))
 
         if name == "admin_xdcr_replication_pause":

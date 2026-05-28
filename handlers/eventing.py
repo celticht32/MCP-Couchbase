@@ -37,10 +37,9 @@ Tools added (10):
 
 from __future__ import annotations
 
-from mcp.types import Tool, TextContent, ToolAnnotations
+from mcp.types import TextContent, Tool, ToolAnnotations
 
-from .shared import admin_request, admin_request_json, err, ok
-
+from .shared import admin_request, admin_request_json, err, ok, quote_path
 
 # Cluster-manager proxy prefix for the Eventing REST API. See module
 # docstring for the path-assumption caveat.
@@ -55,6 +54,11 @@ def _evt_path(suffix: str) -> str:
     return _EVT_BASE + suffix
 
 
+def _fn_name(args: dict) -> str:
+    """Return a URL-encoded function name from args."""
+    return quote_path(args["function_name"])
+
+
 TOOLS: list[Tool] = [
     Tool(
         name="admin_eventing_list",
@@ -64,7 +68,9 @@ TOOLS: list[Tool] = [
         ),
         inputSchema={"type": "object", "properties": {}},
         annotations=ToolAnnotations(
-            readOnlyHint=True, destructiveHint=False, idempotentHint=True,
+            readOnlyHint=True,
+            destructiveHint=False,
+            idempotentHint=True,
         ),
     ),
     Tool(
@@ -79,7 +85,9 @@ TOOLS: list[Tool] = [
             "required": ["function_name"],
         },
         annotations=ToolAnnotations(
-            readOnlyHint=True, destructiveHint=False, idempotentHint=True,
+            readOnlyHint=True,
+            destructiveHint=False,
+            idempotentHint=True,
         ),
     ),
     Tool(
@@ -107,7 +115,9 @@ TOOLS: list[Tool] = [
             "required": ["function_name", "definition"],
         },
         annotations=ToolAnnotations(
-            readOnlyHint=False, destructiveHint=False, idempotentHint=True,
+            readOnlyHint=False,
+            destructiveHint=False,
+            idempotentHint=True,
         ),
     ),
     Tool(
@@ -125,7 +135,9 @@ TOOLS: list[Tool] = [
             "required": ["function_name"],
         },
         annotations=ToolAnnotations(
-            readOnlyHint=False, destructiveHint=True, idempotentHint=True,
+            readOnlyHint=False,
+            destructiveHint=True,
+            idempotentHint=True,
         ),
     ),
     Tool(
@@ -141,7 +153,9 @@ TOOLS: list[Tool] = [
             "required": ["function_name"],
         },
         annotations=ToolAnnotations(
-            readOnlyHint=False, destructiveHint=False, idempotentHint=True,
+            readOnlyHint=False,
+            destructiveHint=False,
+            idempotentHint=True,
         ),
     ),
     Tool(
@@ -160,7 +174,9 @@ TOOLS: list[Tool] = [
             "required": ["function_name"],
         },
         annotations=ToolAnnotations(
-            readOnlyHint=False, destructiveHint=True, idempotentHint=True,
+            readOnlyHint=False,
+            destructiveHint=True,
+            idempotentHint=True,
         ),
     ),
     Tool(
@@ -175,7 +191,9 @@ TOOLS: list[Tool] = [
             "required": ["function_name"],
         },
         annotations=ToolAnnotations(
-            readOnlyHint=False, destructiveHint=False, idempotentHint=True,
+            readOnlyHint=False,
+            destructiveHint=False,
+            idempotentHint=True,
         ),
     ),
     Tool(
@@ -190,7 +208,9 @@ TOOLS: list[Tool] = [
             "required": ["function_name"],
         },
         annotations=ToolAnnotations(
-            readOnlyHint=False, destructiveHint=False, idempotentHint=True,
+            readOnlyHint=False,
+            destructiveHint=False,
+            idempotentHint=True,
         ),
     ),
     Tool(
@@ -201,7 +221,9 @@ TOOLS: list[Tool] = [
         ),
         inputSchema={"type": "object", "properties": {}},
         annotations=ToolAnnotations(
-            readOnlyHint=True, destructiveHint=False, idempotentHint=True,
+            readOnlyHint=True,
+            destructiveHint=False,
+            idempotentHint=True,
         ),
     ),
     Tool(
@@ -213,7 +235,9 @@ TOOLS: list[Tool] = [
         ),
         inputSchema={"type": "object", "properties": {}},
         annotations=ToolAnnotations(
-            readOnlyHint=True, destructiveHint=False, idempotentHint=True,
+            readOnlyHint=True,
+            destructiveHint=False,
+            idempotentHint=True,
         ),
     ),
 ]
@@ -225,11 +249,11 @@ def handle(name: str, args: dict) -> list[TextContent]:
             return ok(admin_request("GET", _evt_path("/list")))
 
         if name == "admin_eventing_get":
-            fn = args["function_name"]
+            fn = _fn_name(args)
             return ok(admin_request("GET", _evt_path(f"/functions/{fn}")))
 
         if name == "admin_eventing_create_or_update":
-            fn = args["function_name"]
+            fn = _fn_name(args)
             return ok(
                 admin_request_json(
                     "POST",
@@ -239,23 +263,23 @@ def handle(name: str, args: dict) -> list[TextContent]:
             )
 
         if name == "admin_eventing_delete":
-            fn = args["function_name"]
+            fn = _fn_name(args)
             return ok(admin_request("DELETE", _evt_path(f"/functions/{fn}")))
 
         if name == "admin_eventing_deploy":
-            fn = args["function_name"]
+            fn = _fn_name(args)
             return ok(admin_request("POST", _evt_path(f"/functions/{fn}/deploy")))
 
         if name == "admin_eventing_undeploy":
-            fn = args["function_name"]
+            fn = _fn_name(args)
             return ok(admin_request("POST", _evt_path(f"/functions/{fn}/undeploy")))
 
         if name == "admin_eventing_pause":
-            fn = args["function_name"]
+            fn = _fn_name(args)
             return ok(admin_request("POST", _evt_path(f"/functions/{fn}/pause")))
 
         if name == "admin_eventing_resume":
-            fn = args["function_name"]
+            fn = _fn_name(args)
             return ok(admin_request("POST", _evt_path(f"/functions/{fn}/resume")))
 
         if name == "admin_eventing_stats":

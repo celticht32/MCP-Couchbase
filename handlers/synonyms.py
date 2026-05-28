@@ -21,11 +21,10 @@ call _require_8x() at the top of their handlers.
 
 from __future__ import annotations
 
-from mcp.types import Tool, TextContent, ToolAnnotations
+from mcp.types import TextContent, Tool, ToolAnnotations
 
 from .eight_x import _require_8x
 from .shared import err, get_sdk_connection, ok
-
 
 # ── Schema validation ────────────────────────────────────────────────────────
 
@@ -100,7 +99,9 @@ TOOLS: list[Tool] = [
             "required": ["bucket_name", "key", "input", "synonyms"],
         },
         annotations=ToolAnnotations(
-            readOnlyHint=False, destructiveHint=False, idempotentHint=True,
+            readOnlyHint=False,
+            destructiveHint=False,
+            idempotentHint=True,
         ),
     ),
     Tool(
@@ -120,7 +121,9 @@ TOOLS: list[Tool] = [
             "required": ["bucket_name"],
         },
         annotations=ToolAnnotations(
-            readOnlyHint=True, destructiveHint=False, idempotentHint=True,
+            readOnlyHint=True,
+            destructiveHint=False,
+            idempotentHint=True,
         ),
     ),
     Tool(
@@ -141,7 +144,9 @@ TOOLS: list[Tool] = [
             "required": ["bucket_name", "key"],
         },
         annotations=ToolAnnotations(
-            readOnlyHint=False, destructiveHint=True, idempotentHint=True,
+            readOnlyHint=False,
+            destructiveHint=True,
+            idempotentHint=True,
         ),
     ),
 ]
@@ -174,16 +179,20 @@ def handle(name: str, args: dict) -> list[TextContent]:
             if bad:
                 return bad
             coll = _resolve_collection(
-                cluster, args["bucket_name"], args.get("scope_name"),
+                cluster,
+                args["bucket_name"],
+                args.get("scope_name"),
                 args.get("collection_name"),
             )
             r = coll.upsert(args["key"], doc)
-            return ok({
-                "key": args["key"],
-                "cas": str(r.cas),
-                "operation": "upsert",
-                "schema": "synonym",
-            })
+            return ok(
+                {
+                    "key": args["key"],
+                    "cas": str(r.cas),
+                    "operation": "upsert",
+                    "schema": "synonym",
+                }
+            )
 
         if name == "cb_fts_synonym_list":
             from couchbase.options import QueryOptions
@@ -204,7 +213,9 @@ def handle(name: str, args: dict) -> list[TextContent]:
 
         if name == "cb_fts_synonym_delete":
             coll = _resolve_collection(
-                cluster, args["bucket_name"], args.get("scope_name"),
+                cluster,
+                args["bucket_name"],
+                args.get("scope_name"),
                 args.get("collection_name"),
             )
             coll.remove(args["key"])

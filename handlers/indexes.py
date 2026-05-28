@@ -12,17 +12,17 @@ Changes from upstream:
 
 from __future__ import annotations
 
-from mcp.types import Tool, TextContent, ToolAnnotations
+from mcp.types import TextContent, Tool, ToolAnnotations
 
 from .shared import (
     admin_request,
     assert_index_create_ddl,
     assert_index_drop_ddl,
     err,
+    form_data,
     get_sdk_connection,
     ok,
 )
-
 
 TOOLS: list[Tool] = [
     Tool(
@@ -37,7 +37,9 @@ TOOLS: list[Tool] = [
             },
         },
         annotations=ToolAnnotations(
-            readOnlyHint=True, destructiveHint=False, idempotentHint=True,
+            readOnlyHint=True,
+            destructiveHint=False,
+            idempotentHint=True,
         ),
     ),
     Tool(
@@ -73,7 +75,9 @@ TOOLS: list[Tool] = [
             },
         },
         annotations=ToolAnnotations(
-            readOnlyHint=False, destructiveHint=False, idempotentHint=False,
+            readOnlyHint=False,
+            destructiveHint=False,
+            idempotentHint=False,
         ),
     ),
     Tool(
@@ -98,16 +102,26 @@ TOOLS: list[Tool] = [
             },
         },
         annotations=ToolAnnotations(
-            readOnlyHint=False, destructiveHint=True, idempotentHint=True,
+            readOnlyHint=False,
+            destructiveHint=True,
+            idempotentHint=True,
         ),
     ),
     Tool(
         name="admin_index_build",
-        description="Build deferred indexes on a bucket.",
+        description="Build deferred indexes on a bucket (or scope.collection for CB 7+).",
         inputSchema={
             "type": "object",
             "properties": {
                 "bucket_name": {"type": "string"},
+                "scope_name": {
+                    "type": "string",
+                    "description": "Scope name (CB 7+ only; omit for bucket-level build)",
+                },
+                "collection_name": {
+                    "type": "string",
+                    "description": "Collection name (CB 7+ only; requires scope_name)",
+                },
                 "index_names": {
                     "type": "array",
                     "items": {"type": "string"},
@@ -117,7 +131,9 @@ TOOLS: list[Tool] = [
             "required": ["bucket_name", "index_names"],
         },
         annotations=ToolAnnotations(
-            readOnlyHint=False, destructiveHint=False, idempotentHint=True,
+            readOnlyHint=False,
+            destructiveHint=False,
+            idempotentHint=True,
         ),
     ),
     Tool(
@@ -125,7 +141,9 @@ TOOLS: list[Tool] = [
         description="Get Index Service settings (memory, threads, log level, etc.).",
         inputSchema={"type": "object", "properties": {}},
         annotations=ToolAnnotations(
-            readOnlyHint=True, destructiveHint=False, idempotentHint=True,
+            readOnlyHint=True,
+            destructiveHint=False,
+            idempotentHint=True,
         ),
     ),
     Tool(
@@ -145,14 +163,23 @@ TOOLS: list[Tool] = [
                 "logLevel": {
                     "type": "string",
                     "enum": [
-                        "silent", "fatal", "error", "warn", "info",
-                        "verbose", "timing", "debug", "trace",
+                        "silent",
+                        "fatal",
+                        "error",
+                        "warn",
+                        "info",
+                        "verbose",
+                        "timing",
+                        "debug",
+                        "trace",
                     ],
                 },
             },
         },
         annotations=ToolAnnotations(
-            readOnlyHint=False, destructiveHint=False, idempotentHint=True,
+            readOnlyHint=False,
+            destructiveHint=False,
+            idempotentHint=True,
         ),
     ),
 ]
@@ -222,7 +249,9 @@ def handle(name: str, args: dict) -> list[TextContent]:
                 stmt = f"CREATE PRIMARY INDEX {idx} ON {bucket}.{scope}.{coll}"
             else:
                 if not args.get("index_name"):
-                    return err("index_name is required for non-primary indexes", tool=name)
+                    return err(
+                        "index_name is required for non-primary indexes", tool=name
+                    )
                 if not args.get("fields"):
                     return err("fields are required for non-primary indexes", tool=name)
                 idx = _safe_ident(args["index_name"])
@@ -247,7 +276,9 @@ def handle(name: str, args: dict) -> list[TextContent]:
                 return _run_n1ql(args["statement"])
 
             if not args.get("bucket_name"):
-                return err("bucket_name is required when statement is not provided", tool=name)
+                return err(
+                    "bucket_name is required when statement is not provided", tool=name
+                )
 
             bucket = _safe_ident(args["bucket_name"])
             scope = _safe_ident(args.get("scope_name", "_default"))
@@ -263,19 +294,22 @@ def handle(name: str, args: dict) -> list[TextContent]:
 
         if name == "admin_index_build":
             bucket = _safe_ident(args["bucket_name"])
+            scope = args.get("scope_name")
+            coll = args.get("collection_name")
             indexes = ", ".join(_safe_ident(i) for i in args["index_names"])
-            stmt = f"BUILD INDEX ON {bucket} ({indexes})"
+            if scope and coll:
+                # CB 7+ scoped build
+                keyspace = f"{bucket}.{_safe_ident(scope)}.{_safe_ident(coll)}"
+            else:
+                keyspace = bucket
+            stmt = f"BUILD INDEX ON {keyspace} ({indexes})"
             return _run_n1ql(stmt)
 
         if name == "admin_index_settings_get":
             return ok(admin_request("GET", "/settings/indexes"))
 
         if name == "admin_index_settings_set":
-            data = {
-                k: str(v)
-                for k, v in args.items()
-                if v is not None and k != "confirm"
-            }
+            data = form_data(args)
             return ok(admin_request("POST", "/settings/indexes", data=data))
 
         return err(f"Unknown index tool: {name}", tool=name)

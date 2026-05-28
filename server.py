@@ -78,7 +78,7 @@ import sys
 
 from mcp.server import Server
 from mcp.server.stdio import stdio_server
-from mcp.types import Tool, TextContent
+from mcp.types import TextContent, Tool
 
 from handlers import (
     buckets,
@@ -92,6 +92,7 @@ from handlers import (
     eventing,
     extended,
     indexes,
+    mcp_status,
     search_admin,
     security,
     stats,
@@ -105,7 +106,6 @@ from handlers.shared import (
     get_confirmation_required,
     require_confirmation,
 )
-
 
 # ── Aggregate tool registry ──────────────────────────────────────────────────
 
@@ -126,6 +126,7 @@ _RAW_TOOLS: list[Tool] = (
     + synonyms.TOOLS
     + encryption.TOOLS
     + capella.TOOLS
+    + mcp_status.TOOLS
 )
 
 _HANDLERS = {
@@ -145,6 +146,7 @@ _HANDLERS = {
     **{t.name: synonyms for t in synonyms.TOOLS},
     **{t.name: encryption for t in encryption.TOOLS},
     **{t.name: capella for t in capella.TOOLS},
+    **{t.name: mcp_status for t in mcp_status.TOOLS},
 }
 
 # Tools that stay loaded in read-only mode despite destructiveHint=true,
@@ -199,7 +201,9 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
 
     handler = _HANDLERS.get(name)
     if handler is None:
-        return err(f"Unknown tool: {name}", tool=name, hint="Tool may be disabled or unloaded.")
+        return err(
+            f"Unknown tool: {name}", tool=name, hint="Tool may be disabled or unloaded."
+        )
 
     # Tool must also be in the currently exposed list.
     if name not in {t.name for t in _TOOLS}:
@@ -299,7 +303,7 @@ async def _main_http() -> None:
         await _main_stdio()
 
 
-async def main() -> None:
+async def _async_main() -> None:
     _startup_banner()
     transport = os.environ.get("CB_MCP_TRANSPORT", "stdio").lower()
     if transport in ("http", "streamable_http", "streamablehttp"):
@@ -308,5 +312,13 @@ async def main() -> None:
         await _main_stdio()
 
 
+def main() -> None:
+    """Synchronous entry point used by the `couchbase-mcp-server` console script
+    (configured in pyproject.toml). Wraps the async runtime so pip-installed
+    users get a clean CLI: `couchbase-mcp-server` just works.
+    """
+    asyncio.run(_async_main())
+
+
 if __name__ == "__main__":
-    asyncio.run(main())
+    main()

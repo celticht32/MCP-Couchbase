@@ -8,10 +8,9 @@ Changes from upstream:
 
 from __future__ import annotations
 
-from mcp.types import Tool, TextContent, ToolAnnotations
+from mcp.types import TextContent, Tool, ToolAnnotations
 
-from .shared import admin_request, err, ok
-
+from .shared import admin_request, err, form_data, ok, quote_path
 
 TOOLS: list[Tool] = [
     # ── Users ────────────────────────────────────────────────────────────
@@ -29,7 +28,9 @@ TOOLS: list[Tool] = [
             },
         },
         annotations=ToolAnnotations(
-            readOnlyHint=True, destructiveHint=False, idempotentHint=True,
+            readOnlyHint=True,
+            destructiveHint=False,
+            idempotentHint=True,
         ),
     ),
     Tool(
@@ -44,7 +45,9 @@ TOOLS: list[Tool] = [
             "required": ["username"],
         },
         annotations=ToolAnnotations(
-            readOnlyHint=True, destructiveHint=False, idempotentHint=True,
+            readOnlyHint=True,
+            destructiveHint=False,
+            idempotentHint=True,
         ),
     ),
     Tool(
@@ -71,7 +74,9 @@ TOOLS: list[Tool] = [
             "required": ["username", "password", "roles"],
         },
         annotations=ToolAnnotations(
-            readOnlyHint=False, destructiveHint=False, idempotentHint=True,
+            readOnlyHint=False,
+            destructiveHint=False,
+            idempotentHint=True,
         ),
     ),
     Tool(
@@ -87,7 +92,9 @@ TOOLS: list[Tool] = [
             "required": ["username"],
         },
         annotations=ToolAnnotations(
-            readOnlyHint=False, destructiveHint=True, idempotentHint=True,
+            readOnlyHint=False,
+            destructiveHint=True,
+            idempotentHint=True,
         ),
     ),
     Tool(
@@ -103,7 +110,9 @@ TOOLS: list[Tool] = [
             "required": ["username", "password"],
         },
         annotations=ToolAnnotations(
-            readOnlyHint=False, destructiveHint=True, idempotentHint=True,
+            readOnlyHint=False,
+            destructiveHint=True,
+            idempotentHint=True,
         ),
     ),
     # ── Groups ───────────────────────────────────────────────────────────
@@ -112,7 +121,9 @@ TOOLS: list[Tool] = [
         description="List all user groups.",
         inputSchema={"type": "object", "properties": {}},
         annotations=ToolAnnotations(
-            readOnlyHint=True, destructiveHint=False, idempotentHint=True,
+            readOnlyHint=True,
+            destructiveHint=False,
+            idempotentHint=True,
         ),
     ),
     Tool(
@@ -124,7 +135,9 @@ TOOLS: list[Tool] = [
             "required": ["group_name"],
         },
         annotations=ToolAnnotations(
-            readOnlyHint=True, destructiveHint=False, idempotentHint=True,
+            readOnlyHint=True,
+            destructiveHint=False,
+            idempotentHint=True,
         ),
     ),
     Tool(
@@ -141,7 +154,9 @@ TOOLS: list[Tool] = [
             "required": ["group_name", "roles"],
         },
         annotations=ToolAnnotations(
-            readOnlyHint=False, destructiveHint=False, idempotentHint=True,
+            readOnlyHint=False,
+            destructiveHint=False,
+            idempotentHint=True,
         ),
     ),
     Tool(
@@ -156,7 +171,9 @@ TOOLS: list[Tool] = [
             "required": ["group_name"],
         },
         annotations=ToolAnnotations(
-            readOnlyHint=False, destructiveHint=True, idempotentHint=True,
+            readOnlyHint=False,
+            destructiveHint=True,
+            idempotentHint=True,
         ),
     ),
     # ── Roles ────────────────────────────────────────────────────────────
@@ -165,7 +182,9 @@ TOOLS: list[Tool] = [
         description="List all available RBAC roles in the cluster.",
         inputSchema={"type": "object", "properties": {}},
         annotations=ToolAnnotations(
-            readOnlyHint=True, destructiveHint=False, idempotentHint=True,
+            readOnlyHint=True,
+            destructiveHint=False,
+            idempotentHint=True,
         ),
     ),
     # ── Who am I ─────────────────────────────────────────────────────────
@@ -174,7 +193,9 @@ TOOLS: list[Tool] = [
         description="Return the identity and roles of the currently authenticated user.",
         inputSchema={"type": "object", "properties": {}},
         annotations=ToolAnnotations(
-            readOnlyHint=True, destructiveHint=False, idempotentHint=True,
+            readOnlyHint=True,
+            destructiveHint=False,
+            idempotentHint=True,
         ),
     ),
     # ── Audit ────────────────────────────────────────────────────────────
@@ -183,7 +204,9 @@ TOOLS: list[Tool] = [
         description="Retrieve current audit configuration.",
         inputSchema={"type": "object", "properties": {}},
         annotations=ToolAnnotations(
-            readOnlyHint=True, destructiveHint=False, idempotentHint=True,
+            readOnlyHint=True,
+            destructiveHint=False,
+            idempotentHint=True,
         ),
     ),
     Tool(
@@ -206,7 +229,9 @@ TOOLS: list[Tool] = [
             },
         },
         annotations=ToolAnnotations(
-            readOnlyHint=False, destructiveHint=False, idempotentHint=True,
+            readOnlyHint=False,
+            destructiveHint=False,
+            idempotentHint=True,
         ),
     ),
     # ── Password policy ───────────────────────────────────────────────────
@@ -215,7 +240,9 @@ TOOLS: list[Tool] = [
         description="Retrieve the current password policy.",
         inputSchema={"type": "object", "properties": {}},
         annotations=ToolAnnotations(
-            readOnlyHint=True, destructiveHint=False, idempotentHint=True,
+            readOnlyHint=True,
+            destructiveHint=False,
+            idempotentHint=True,
         ),
     ),
     Tool(
@@ -235,7 +262,9 @@ TOOLS: list[Tool] = [
             },
         },
         annotations=ToolAnnotations(
-            readOnlyHint=False, destructiveHint=False, idempotentHint=True,
+            readOnlyHint=False,
+            destructiveHint=False,
+            idempotentHint=True,
         ),
     ),
     # ── Security settings ─────────────────────────────────────────────────
@@ -244,7 +273,9 @@ TOOLS: list[Tool] = [
         description="Get global security / TLS settings.",
         inputSchema={"type": "object", "properties": {}},
         annotations=ToolAnnotations(
-            readOnlyHint=True, destructiveHint=False, idempotentHint=True,
+            readOnlyHint=True,
+            destructiveHint=False,
+            idempotentHint=True,
         ),
     ),
     Tool(
@@ -267,7 +298,9 @@ TOOLS: list[Tool] = [
             },
         },
         annotations=ToolAnnotations(
-            readOnlyHint=False, destructiveHint=True, idempotentHint=True,
+            readOnlyHint=False,
+            destructiveHint=True,
+            idempotentHint=True,
         ),
     ),
 ]
@@ -275,17 +308,25 @@ TOOLS: list[Tool] = [
 
 def handle(name: str, args: dict) -> list[TextContent]:
     try:
-        domain = args.get("domain", "local")
+        # Validate domain against allowed values — defense-in-depth, since schema
+        # enums are advisory and not server-enforced.
+        raw_domain = args.get("domain", "local")
+        if raw_domain not in ("local", "external"):
+            return err(
+                f"Invalid domain {raw_domain!r}; must be 'local' or 'external'.",
+                tool=name,
+            )
+        domain = raw_domain  # safe to interpolate; validated against allow-list
 
         if name == "admin_user_list":
             return ok(admin_request("GET", f"/settings/rbac/users/{domain}"))
 
         if name == "admin_user_get":
-            u = args["username"]
+            u = quote_path(args["username"])
             return ok(admin_request("GET", f"/settings/rbac/users/{domain}/{u}"))
 
         if name == "admin_user_create":
-            u = args["username"]
+            u = quote_path(args["username"])
             data = {"password": args["password"], "roles": args["roles"]}
             if args.get("name"):
                 data["name"] = args["name"]
@@ -296,16 +337,18 @@ def handle(name: str, args: dict) -> list[TextContent]:
             )
 
         if name == "admin_user_delete":
-            u = args["username"]
+            u = quote_path(args["username"])
             return ok(admin_request("DELETE", f"/settings/rbac/users/{domain}/{u}"))
 
         if name == "admin_user_change_password":
-            u = args["username"]
+            # Use the dedicated changePassword endpoint — PUT /settings/rbac/users/local/{u}
+            # with only the password field would silently wipe the user's existing roles.
+            # /controller/changePassword is the correct role-preserving endpoint.
             return ok(
                 admin_request(
-                    "PUT",
-                    f"/settings/rbac/users/local/{u}",
-                    data={"password": args["password"]},
+                    "POST",
+                    "/controller/changePassword",
+                    data={"username": args["username"], "password": args["password"]},
                 )
             )
 
@@ -313,12 +356,11 @@ def handle(name: str, args: dict) -> list[TextContent]:
             return ok(admin_request("GET", "/settings/rbac/groups"))
 
         if name == "admin_group_get":
-            return ok(
-                admin_request("GET", f"/settings/rbac/groups/{args['group_name']}")
-            )
+            g = quote_path(args["group_name"])
+            return ok(admin_request("GET", f"/settings/rbac/groups/{g}"))
 
         if name == "admin_group_create":
-            g = args["group_name"]
+            g = quote_path(args["group_name"])
             data = {"roles": args["roles"]}
             if args.get("description"):
                 data["description"] = args["description"]
@@ -327,9 +369,8 @@ def handle(name: str, args: dict) -> list[TextContent]:
             return ok(admin_request("PUT", f"/settings/rbac/groups/{g}", data=data))
 
         if name == "admin_group_delete":
-            return ok(
-                admin_request("DELETE", f"/settings/rbac/groups/{args['group_name']}")
-            )
+            g = quote_path(args["group_name"])
+            return ok(admin_request("DELETE", f"/settings/rbac/groups/{g}"))
 
         if name == "admin_role_list":
             return ok(admin_request("GET", "/settings/rbac/roles"))
@@ -341,33 +382,23 @@ def handle(name: str, args: dict) -> list[TextContent]:
             return ok(admin_request("GET", "/settings/audit"))
 
         if name == "admin_audit_set":
-            data = {
-                k: str(v)
-                for k, v in args.items()
-                if v is not None and k != "confirm"
-            }
+            # form_data converts booleans to lowercase 'true'/'false' as Couchbase
+            # REST expects, and strips 'confirm' from the payload.
+            data = form_data(args)
             return ok(admin_request("POST", "/settings/audit", data=data))
 
         if name == "admin_password_policy_get":
             return ok(admin_request("GET", "/settings/passwordPolicy"))
 
         if name == "admin_password_policy_set":
-            data = {
-                k: str(v)
-                for k, v in args.items()
-                if v is not None and k != "confirm"
-            }
+            data = form_data(args)
             return ok(admin_request("POST", "/settings/passwordPolicy", data=data))
 
         if name == "admin_security_settings_get":
             return ok(admin_request("GET", "/settings/security"))
 
         if name == "admin_security_settings_set":
-            data = {
-                k: str(v)
-                for k, v in args.items()
-                if v is not None and k != "confirm"
-            }
+            data = form_data(args)
             return ok(admin_request("POST", "/settings/security", data=data))
 
         return err(f"Unknown security tool: {name}", tool=name)

@@ -34,7 +34,8 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
-from typing import Any, Iterable
+from collections.abc import Iterable
+from typing import Any
 
 from mcp.types import TextContent
 
@@ -83,7 +84,7 @@ def _parse_tool_list(raw: str | None) -> set[str]:
     # If it looks like a file path and the file exists, read it
     if os.path.isfile(raw):
         names: set[str] = set()
-        with open(raw, "r", encoding="utf-8") as f:
+        with open(raw, encoding="utf-8") as f:
             for line in f:
                 line = line.strip()
                 if not line or line.startswith("#"):
@@ -126,10 +127,11 @@ def get_sdk_connection():
         return _cluster, _bucket, _collection
 
     try:
+        from datetime import timedelta
+
+        from couchbase.auth import CertificateAuthenticator, PasswordAuthenticator
         from couchbase.cluster import Cluster
         from couchbase.options import ClusterOptions
-        from couchbase.auth import PasswordAuthenticator, CertificateAuthenticator
-        from datetime import timedelta
     except ImportError as exc:
         raise RuntimeError("pip install couchbase>=4.2.0") from exc
 
@@ -285,7 +287,9 @@ def admin_request(
     for attempt in range(1, _MAX_ATTEMPTS + 1):
         req = urllib.request.Request(url, data=body, method=method, headers=headers)
         try:
-            with urllib.request.urlopen(req, timeout=_HTTP_TIMEOUT, context=context) as resp:
+            with urllib.request.urlopen(
+                req, timeout=_HTTP_TIMEOUT, context=context
+            ) as resp:
                 raw = resp.read()
                 if not raw:
                     return {"status": "ok"}
@@ -445,7 +449,9 @@ def assert_index_drop_ddl(stmt: str) -> str | None:
 # ── Confirmation gate for destructive tools ──────────────────────────────────
 
 
-def require_confirmation(tool_name: str, args: dict, in_confirm_set: bool) -> str | None:
+def require_confirmation(
+    tool_name: str, args: dict, in_confirm_set: bool
+) -> str | None:
     """
     If the tool is in the confirmation set and args doesn't include `confirm: true`,
     return an error message. Otherwise return None.
@@ -469,6 +475,43 @@ def require_confirmation(tool_name: str, args: dict, in_confirm_set: bool) -> st
 
 
 # ── Response helpers ─────────────────────────────────────────────────────────
+
+
+def form_value(v: Any) -> str:
+    """Convert a value to its REST form-encoding string representation.
+
+    Couchbase REST endpoints expect lowercase 'true'/'false' for boolean fields,
+    not Python's str(True)='True'. This helper produces the correct encoding for
+    booleans while passing through ints/floats/strings via str().
+    """
+    if isinstance(v, bool):
+        return "true" if v else "false"
+    return str(v)
+
+
+def quote_path(segment: str) -> str:
+    """URL-encode a single path segment for use in a REST URL.
+
+    Encodes every reserved character including '/' so a user-supplied identifier
+    containing slashes, spaces, '@', '#', etc. can never escape its segment or
+    inject extra path components. Use this for every user-supplied value that
+    is interpolated into an admin_request path.
+    """
+    return urllib.parse.quote(segment or "", safe="")
+
+
+def form_data(args: dict, exclude: Iterable[str] = ("confirm",)) -> dict:
+    """Build a form-encodable dict from tool args.
+
+    - Drops None values
+    - Drops keys in `exclude` (default: 'confirm')
+    - Converts booleans to lowercase 'true'/'false' (Couchbase REST API requirement)
+    - Converts all other values via str()
+    """
+    excluded = set(exclude)
+    return {
+        k: form_value(v) for k, v in args.items() if v is not None and k not in excluded
+    }
 
 
 def ok(data: Any) -> list[TextContent]:

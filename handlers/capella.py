@@ -62,10 +62,9 @@ import urllib.parse
 import urllib.request
 from typing import Any
 
-from mcp.types import Tool, TextContent, ToolAnnotations
+from mcp.types import TextContent, Tool, ToolAnnotations
 
 from .shared import err, get_env, get_env_int, ok
-
 
 _DEFAULT_CAPELLA_BASE = "https://cloudapi.cloud.couchbase.com"
 
@@ -306,7 +305,10 @@ TOOLS: list[Tool] = [
                 "allowed_cidr_id": {"type": "string"},
             },
             "required": [
-                "organization_id", "project_id", "cluster_id", "allowed_cidr_id",
+                "organization_id",
+                "project_id",
+                "cluster_id",
+                "allowed_cidr_id",
             ],
         },
         annotations=_RO,
@@ -431,77 +433,120 @@ def handle(name: str, args: dict) -> list[TextContent]:
             )
 
         if name == "capella_clusters_list":
-            return ok(_capella_request(
-                "GET", _path("organizations", org, "projects", proj, "clusters")
-            ))
+            return ok(
+                _capella_request(
+                    "GET", _path("organizations", org, "projects", proj, "clusters")
+                )
+            )
 
         if name == "capella_cluster_get":
-            return ok(_capella_request(
-                "GET", _path("organizations", org, "projects", proj, "clusters", cl)
-            ))
+            return ok(
+                _capella_request(
+                    "GET", _path("organizations", org, "projects", proj, "clusters", cl)
+                )
+            )
 
         if name == "capella_database_users_list":
-            return ok(_capella_request(
-                "GET",
-                _path("organizations", org, "projects", proj, "clusters", cl, "users"),
-            ))
+            return ok(
+                _capella_request(
+                    "GET",
+                    _path(
+                        "organizations", org, "projects", proj, "clusters", cl, "users"
+                    ),
+                )
+            )
 
         if name == "capella_database_user_get":
-            return ok(_capella_request(
-                "GET",
-                _path(
-                    "organizations", org, "projects", proj, "clusters", cl,
-                    "users", args["user_id"],
-                ),
-            ))
+            return ok(
+                _capella_request(
+                    "GET",
+                    _path(
+                        "organizations",
+                        org,
+                        "projects",
+                        proj,
+                        "clusters",
+                        cl,
+                        "users",
+                        args["user_id"],
+                    ),
+                )
+            )
 
         if name == "capella_allowed_cidrs_list":
-            return ok(_capella_request(
-                "GET",
-                _path(
-                    "organizations", org, "projects", proj, "clusters", cl,
-                    "allowedcidrs",
-                ),
-            ))
+            return ok(
+                _capella_request(
+                    "GET",
+                    _path(
+                        "organizations",
+                        org,
+                        "projects",
+                        proj,
+                        "clusters",
+                        cl,
+                        "allowedcidrs",
+                    ),
+                )
+            )
 
         if name == "capella_allowed_cidr_get":
-            return ok(_capella_request(
-                "GET",
-                _path(
-                    "organizations", org, "projects", proj, "clusters", cl,
-                    "allowedcidrs", args["allowed_cidr_id"],
-                ),
-            ))
+            return ok(
+                _capella_request(
+                    "GET",
+                    _path(
+                        "organizations",
+                        org,
+                        "projects",
+                        proj,
+                        "clusters",
+                        cl,
+                        "allowedcidrs",
+                        args["allowed_cidr_id"],
+                    ),
+                )
+            )
 
         if name == "capella_org_users_list":
             return ok(_capella_request("GET", _path("organizations", org, "users")))
 
         if name == "capella_org_user_get":
-            return ok(_capella_request(
-                "GET", _path("organizations", org, "users", args["user_id"])
-            ))
+            return ok(
+                _capella_request(
+                    "GET", _path("organizations", org, "users", args["user_id"])
+                )
+            )
 
         if name == "capella_api_keys_list":
             return ok(_capella_request("GET", _path("organizations", org, "apikeys")))
 
         if name == "capella_api_key_get":
-            return ok(_capella_request(
-                "GET", _path("organizations", org, "apikeys", args["api_key_id"])
-            ))
+            return ok(
+                _capella_request(
+                    "GET", _path("organizations", org, "apikeys", args["api_key_id"])
+                )
+            )
 
         if name == "capella_app_services_list":
-            return ok(_capella_request(
-                "GET", _path("organizations", org, "projects", proj, "appservices")
-            ))
+            return ok(
+                _capella_request(
+                    "GET", _path("organizations", org, "projects", proj, "appservices")
+                )
+            )
 
         if name == "capella_app_service_get":
-            return ok(_capella_request(
-                "GET",
-                _path(
-                    "organizations", org, "projects", proj,
-                    "appservices", args["app_service_id"],
-                ),
-            ))
+            return ok(
+                _capella_request(
+                    "GET",
+                    _path(
+                        "organizations",
+                        org,
+                        "projects",
+                        proj,
+                        "appservices",
+                        args["app_service_id"],
+                    ),
+                )
+            )
 
         return err(f"Unknown Capella tool: {name}", tool=name)
 

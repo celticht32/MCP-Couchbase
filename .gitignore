@@ -1,10 +1,8 @@
-# Python bytecode
+# Python
 __pycache__/
 *.py[cod]
 *$py.class
 *.so
-
-# Distribution / packaging
 .Python
 build/
 develop-eggs/
@@ -18,37 +16,72 @@ parts/
 sdist/
 var/
 wheels/
+share/python-wheels/
 *.egg-info/
 .installed.cfg
 *.egg
-
-# pytest / coverage
-.pytest_cache/
-.coverage
-.coverage.*
-htmlcov/
-.tox/
-.nox/
+MANIFEST
 
 # Virtual environments
-venv/
+.env
+.env.*
+!.env.example
+.venv
 env/
-.venv/
-.env/
+venv/
 ENV/
 
-# IDE / editor
-.vscode/
+# Secrets — never commit certs / keys / connection strings
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+*.cer
+secrets/
+secrets.yaml
+credentials.json
+.couchbase-mcp/
+env.bak/
+venv.bak/
+
+# uv
+.uv/
+uv.lock
+
+# Testing
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+cover/
+
+# Linting / tooling
+.ruff_cache/
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# IDE
 .idea/
+.vscode/
 *.swp
 *.swo
+*~
+
+# OS
 .DS_Store
+Thumbs.db
 
-# Real config (NEVER commit credentials)
-# Keep claude_desktop_config.example.json as the template.
-claude_desktop_config.json
-
-# Local notes / experiments
-*.local
-notes.md
-TODO.local.md
+# Project-specific
+GUI Server.zip
+couchbase-mcp-tests.zip
+couchbase-mcp-gui.docx
+disabled_tools.txt

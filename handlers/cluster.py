@@ -8,10 +8,9 @@ Changes from upstream:
 
 from __future__ import annotations
 
-from mcp.types import Tool, TextContent, ToolAnnotations
+from mcp.types import TextContent, Tool, ToolAnnotations
 
-from .shared import admin_request, err, ok
-
+from .shared import admin_request, err, form_data, ok, quote_path
 
 TOOLS: list[Tool] = [
     # ── Cluster info ────────────────────────────────────────────────────
@@ -19,19 +18,25 @@ TOOLS: list[Tool] = [
         name="admin_cluster_info",
         description="Get high-level cluster information (name, nodes, memory quotas, etc.).",
         inputSchema={"type": "object", "properties": {}},
-        annotations=ToolAnnotations(readOnlyHint=True, destructiveHint=False, idempotentHint=True),
+        annotations=ToolAnnotations(
+            readOnlyHint=True, destructiveHint=False, idempotentHint=True
+        ),
     ),
     Tool(
         name="admin_cluster_details",
         description="Get detailed cluster info including node services and storage.",
         inputSchema={"type": "object", "properties": {}},
-        annotations=ToolAnnotations(readOnlyHint=True, destructiveHint=False, idempotentHint=True),
+        annotations=ToolAnnotations(
+            readOnlyHint=True, destructiveHint=False, idempotentHint=True
+        ),
     ),
     Tool(
         name="admin_cluster_tasks",
         description="List all ongoing cluster tasks (rebalance, compaction, index, etc.).",
         inputSchema={"type": "object", "properties": {}},
-        annotations=ToolAnnotations(readOnlyHint=True, destructiveHint=False, idempotentHint=True),
+        annotations=ToolAnnotations(
+            readOnlyHint=True, destructiveHint=False, idempotentHint=True
+        ),
     ),
     Tool(
         name="admin_cluster_name_set",
@@ -41,7 +46,9 @@ TOOLS: list[Tool] = [
             "properties": {"clusterName": {"type": "string"}},
             "required": ["clusterName"],
         },
-        annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=False, idempotentHint=True),
+        annotations=ToolAnnotations(
+            readOnlyHint=False, destructiveHint=False, idempotentHint=True
+        ),
     ),
     Tool(
         name="admin_cluster_memory_set",
@@ -61,20 +68,26 @@ TOOLS: list[Tool] = [
                 "confirm": {"type": "boolean"},
             },
         },
-        annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=True, idempotentHint=True),
+        annotations=ToolAnnotations(
+            readOnlyHint=False, destructiveHint=True, idempotentHint=True
+        ),
     ),
     # ── Nodes ────────────────────────────────────────────────────────────
     Tool(
         name="admin_node_list",
         description="List all nodes in the cluster with status and services.",
         inputSchema={"type": "object", "properties": {}},
-        annotations=ToolAnnotations(readOnlyHint=True, destructiveHint=False, idempotentHint=True),
+        annotations=ToolAnnotations(
+            readOnlyHint=True, destructiveHint=False, idempotentHint=True
+        ),
     ),
     Tool(
         name="admin_node_services_list",
         description="List services running on each node.",
         inputSchema={"type": "object", "properties": {}},
-        annotations=ToolAnnotations(readOnlyHint=True, destructiveHint=False, idempotentHint=True),
+        annotations=ToolAnnotations(
+            readOnlyHint=True, destructiveHint=False, idempotentHint=True
+        ),
     ),
     Tool(
         name="admin_node_add",
@@ -82,8 +95,14 @@ TOOLS: list[Tool] = [
         inputSchema={
             "type": "object",
             "properties": {
-                "hostname": {"type": "string", "description": "IP or hostname of the new node"},
-                "user": {"type": "string", "description": "Admin username on the new node"},
+                "hostname": {
+                    "type": "string",
+                    "description": "IP or hostname of the new node",
+                },
+                "user": {
+                    "type": "string",
+                    "description": "Admin username on the new node",
+                },
                 "password": {"type": "string"},
                 "services": {
                     "type": "string",
@@ -92,7 +111,9 @@ TOOLS: list[Tool] = [
             },
             "required": ["hostname", "user", "password"],
         },
-        annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=False, idempotentHint=False),
+        annotations=ToolAnnotations(
+            readOnlyHint=False, destructiveHint=False, idempotentHint=False
+        ),
     ),
     Tool(
         name="admin_node_remove",
@@ -108,7 +129,9 @@ TOOLS: list[Tool] = [
             },
             "required": ["otpNode"],
         },
-        annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=True, idempotentHint=True),
+        annotations=ToolAnnotations(
+            readOnlyHint=False, destructiveHint=True, idempotentHint=True
+        ),
     ),
     # ── Rebalance ────────────────────────────────────────────────────────
     Tool(
@@ -132,13 +155,17 @@ TOOLS: list[Tool] = [
                 "confirm": {"type": "boolean"},
             },
         },
-        annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=True, idempotentHint=False),
+        annotations=ToolAnnotations(
+            readOnlyHint=False, destructiveHint=True, idempotentHint=False
+        ),
     ),
     Tool(
         name="admin_rebalance_progress",
         description="Get the current rebalance progress.",
         inputSchema={"type": "object", "properties": {}},
-        annotations=ToolAnnotations(readOnlyHint=True, destructiveHint=False, idempotentHint=True),
+        annotations=ToolAnnotations(
+            readOnlyHint=True, destructiveHint=False, idempotentHint=True
+        ),
     ),
     Tool(
         name="admin_rebalance_stop",
@@ -147,7 +174,9 @@ TOOLS: list[Tool] = [
             "type": "object",
             "properties": {"confirm": {"type": "boolean"}},
         },
-        annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=True, idempotentHint=True),
+        annotations=ToolAnnotations(
+            readOnlyHint=False, destructiveHint=True, idempotentHint=True
+        ),
     ),
     # ── Failover ─────────────────────────────────────────────────────────
     Tool(
@@ -165,7 +194,9 @@ TOOLS: list[Tool] = [
             },
             "required": ["otpNode"],
         },
-        annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=True, idempotentHint=False),
+        annotations=ToolAnnotations(
+            readOnlyHint=False, destructiveHint=True, idempotentHint=False
+        ),
     ),
     Tool(
         name="admin_failover_graceful",
@@ -178,7 +209,9 @@ TOOLS: list[Tool] = [
             },
             "required": ["otpNode"],
         },
-        annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=True, idempotentHint=False),
+        annotations=ToolAnnotations(
+            readOnlyHint=False, destructiveHint=True, idempotentHint=False
+        ),
     ),
     Tool(
         name="admin_recovery_type_set",
@@ -191,14 +224,18 @@ TOOLS: list[Tool] = [
             },
             "required": ["otpNode", "recoveryType"],
         },
-        annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=False, idempotentHint=True),
+        annotations=ToolAnnotations(
+            readOnlyHint=False, destructiveHint=False, idempotentHint=True
+        ),
     ),
     # ── Auto-Failover ─────────────────────────────────────────────────────
     Tool(
         name="admin_autofailover_get",
         description="Get auto-failover settings.",
         inputSchema={"type": "object", "properties": {}},
-        annotations=ToolAnnotations(readOnlyHint=True, destructiveHint=False, idempotentHint=True),
+        annotations=ToolAnnotations(
+            readOnlyHint=True, destructiveHint=False, idempotentHint=True
+        ),
     ),
     Tool(
         name="admin_autofailover_set",
@@ -207,25 +244,34 @@ TOOLS: list[Tool] = [
             "type": "object",
             "properties": {
                 "enabled": {"type": "boolean"},
-                "timeout": {"type": "integer", "description": "Seconds before failover"},
+                "timeout": {
+                    "type": "integer",
+                    "description": "Seconds before failover",
+                },
                 "maxCount": {"type": "integer"},
             },
             "required": ["enabled"],
         },
-        annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=False, idempotentHint=True),
+        annotations=ToolAnnotations(
+            readOnlyHint=False, destructiveHint=False, idempotentHint=True
+        ),
     ),
     Tool(
         name="admin_autofailover_reset",
         description="Reset the auto-failover counter.",
         inputSchema={"type": "object", "properties": {}},
-        annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=False, idempotentHint=True),
+        annotations=ToolAnnotations(
+            readOnlyHint=False, destructiveHint=False, idempotentHint=True
+        ),
     ),
     # ── Server groups ─────────────────────────────────────────────────────
     Tool(
         name="admin_server_groups_get",
         description="List all server groups (rack-zone awareness).",
         inputSchema={"type": "object", "properties": {}},
-        annotations=ToolAnnotations(readOnlyHint=True, destructiveHint=False, idempotentHint=True),
+        annotations=ToolAnnotations(
+            readOnlyHint=True, destructiveHint=False, idempotentHint=True
+        ),
     ),
     Tool(
         name="admin_server_group_create",
@@ -235,7 +281,9 @@ TOOLS: list[Tool] = [
             "properties": {"name": {"type": "string"}},
             "required": ["name"],
         },
-        annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=False, idempotentHint=False),
+        annotations=ToolAnnotations(
+            readOnlyHint=False, destructiveHint=False, idempotentHint=False
+        ),
     ),
     Tool(
         name="admin_server_group_delete",
@@ -248,7 +296,9 @@ TOOLS: list[Tool] = [
             },
             "required": ["uuid"],
         },
-        annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=True, idempotentHint=True),
+        annotations=ToolAnnotations(
+            readOnlyHint=False, destructiveHint=True, idempotentHint=True
+        ),
     ),
     Tool(
         name="admin_server_group_rename",
@@ -261,7 +311,9 @@ TOOLS: list[Tool] = [
             },
             "required": ["uuid", "name"],
         },
-        annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=False, idempotentHint=True),
+        annotations=ToolAnnotations(
+            readOnlyHint=False, destructiveHint=False, idempotentHint=True
+        ),
     ),
     # ── Logging ───────────────────────────────────────────────────────────
     Tool(
@@ -282,20 +334,26 @@ TOOLS: list[Tool] = [
                 "ticket": {"type": "string"},
             },
         },
-        annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=False, idempotentHint=False),
+        annotations=ToolAnnotations(
+            readOnlyHint=False, destructiveHint=False, idempotentHint=False
+        ),
     ),
     Tool(
         name="admin_logs_collect_cancel",
         description="Cancel an in-progress log collection.",
         inputSchema={"type": "object", "properties": {}},
-        annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=False, idempotentHint=True),
+        annotations=ToolAnnotations(
+            readOnlyHint=False, destructiveHint=False, idempotentHint=True
+        ),
     ),
     # ── Auto-compaction ───────────────────────────────────────────────────
     Tool(
         name="admin_autocompaction_get",
         description="Get global auto-compaction settings.",
         inputSchema={"type": "object", "properties": {}},
-        annotations=ToolAnnotations(readOnlyHint=True, destructiveHint=False, idempotentHint=True),
+        annotations=ToolAnnotations(
+            readOnlyHint=True, destructiveHint=False, idempotentHint=True
+        ),
     ),
     Tool(
         name="admin_autocompaction_set",
@@ -314,14 +372,18 @@ TOOLS: list[Tool] = [
                 "parallelDBAndViewCompaction": {"type": "boolean"},
             },
         },
-        annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=False, idempotentHint=True),
+        annotations=ToolAnnotations(
+            readOnlyHint=False, destructiveHint=False, idempotentHint=True
+        ),
     ),
     # ── Alerts & email ─────────────────────────────────────────────────────
     Tool(
         name="admin_alerts_get",
         description="Get email alert configuration.",
         inputSchema={"type": "object", "properties": {}},
-        annotations=ToolAnnotations(readOnlyHint=True, destructiveHint=False, idempotentHint=True),
+        annotations=ToolAnnotations(
+            readOnlyHint=True, destructiveHint=False, idempotentHint=True
+        ),
     ),
     Tool(
         name="admin_alerts_set",
@@ -342,13 +404,17 @@ TOOLS: list[Tool] = [
                 "emailPass": {"type": "string"},
             },
         },
-        annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=False, idempotentHint=True),
+        annotations=ToolAnnotations(
+            readOnlyHint=False, destructiveHint=False, idempotentHint=True
+        ),
     ),
     Tool(
         name="admin_alerts_test_email",
         description="Send a test email using current alert configuration.",
         inputSchema={"type": "object", "properties": {}},
-        annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=False, idempotentHint=False),
+        annotations=ToolAnnotations(
+            readOnlyHint=False, destructiveHint=False, idempotentHint=False
+        ),
     ),
 ]
 
@@ -372,11 +438,7 @@ def handle(name: str, args: dict) -> list[TextContent]:
             )
 
         if name == "admin_cluster_memory_set":
-            data = {
-                k: str(v)
-                for k, v in args.items()
-                if v is not None and k != "confirm"
-            }
+            data = form_data(args)
             return ok(admin_request("POST", "/pools/default", data=data))
 
         if name == "admin_node_list":
@@ -470,17 +532,15 @@ def handle(name: str, args: dict) -> list[TextContent]:
             )
 
         if name == "admin_server_group_delete":
-            return ok(
-                admin_request(
-                    "DELETE", f"/pools/default/serverGroups/{args['uuid']}"
-                )
-            )
+            sg = quote_path(args["uuid"])
+            return ok(admin_request("DELETE", f"/pools/default/serverGroups/{sg}"))
 
         if name == "admin_server_group_rename":
+            sg = quote_path(args["uuid"])
             return ok(
                 admin_request(
                     "PUT",
-                    f"/pools/default/serverGroups/{args['uuid']}",
+                    f"/pools/default/serverGroups/{sg}",
                     data={"name": args["name"]},
                 )
             )
@@ -490,7 +550,9 @@ def handle(name: str, args: dict) -> list[TextContent]:
             for k in ("nodes", "uploadHost", "customer", "ticket"):
                 if args.get(k):
                     data[k] = args[k]
-            return ok(admin_request("POST", "/controller/startLogsCollection", data=data))
+            return ok(
+                admin_request("POST", "/controller/startLogsCollection", data=data)
+            )
 
         if name == "admin_logs_collect_cancel":
             return ok(admin_request("POST", "/controller/cancelLogsCollection"))
@@ -499,7 +561,7 @@ def handle(name: str, args: dict) -> list[TextContent]:
             return ok(admin_request("GET", "/settings/autoCompaction"))
 
         if name == "admin_autocompaction_set":
-            data = {k: str(v) for k, v in args.items() if v is not None}
+            data = form_data(args)
             return ok(admin_request("POST", "/controller/setAutoCompaction", data=data))
 
         if name == "admin_alerts_get":
@@ -509,9 +571,7 @@ def handle(name: str, args: dict) -> list[TextContent]:
             data = {}
             for k, v in args.items():
                 if v is not None:
-                    data[k] = (
-                        "true" if v is True else "false" if v is False else str(v)
-                    )
+                    data[k] = "true" if v is True else "false" if v is False else str(v)
             return ok(admin_request("POST", "/settings/alerts", data=data))
 
         if name == "admin_alerts_test_email":

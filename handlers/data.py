@@ -13,7 +13,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from mcp.types import Tool, TextContent, ToolAnnotations
+from mcp.types import TextContent, Tool, ToolAnnotations
 
 from .shared import (
     READ_ONLY_MODE,
@@ -23,10 +23,14 @@ from .shared import (
     ok,
 )
 
-
 # ── Durability handling ──────────────────────────────────────────────────────
 
-_DURABILITY_VALUES = {"NONE", "MAJORITY", "MAJORITY_AND_PERSIST_TO_ACTIVE", "PERSIST_TO_MAJORITY"}
+_DURABILITY_VALUES = {
+    "NONE",
+    "MAJORITY",
+    "MAJORITY_AND_PERSIST_TO_ACTIVE",
+    "PERSIST_TO_MAJORITY",
+}
 
 
 def _parse_durability(level: str | None):
@@ -39,12 +43,16 @@ def _parse_durability(level: str | None):
             f"durability must be one of {sorted(_DURABILITY_VALUES)}; got '{level}'"
         )
     from couchbase.durability import DurabilityLevel  # type: ignore
+
     return getattr(DurabilityLevel, level)
 
 
-def _kv_options(option_cls, durability: str | None,
-                expiry_seconds: int | None = None,
-                cas: str | None = None):
+def _kv_options(
+    option_cls,
+    durability: str | None,
+    expiry_seconds: int | None = None,
+    cas: str | None = None,
+):
     """Build an Options object only if any field is set; else return None."""
     kw: dict = {}
     dl = _parse_durability(durability)
@@ -52,12 +60,13 @@ def _kv_options(option_cls, durability: str | None,
         kw["durability_level"] = dl
     if expiry_seconds is not None:
         from datetime import timedelta
+
         kw["expiry"] = timedelta(seconds=int(expiry_seconds))
     if cas is not None:
         try:
             kw["cas"] = int(cas)
-        except (TypeError, ValueError):
-            raise ValueError(f"cas must be an integer string; got '{cas}'")
+        except (TypeError, ValueError) as exc:
+            raise ValueError(f"cas must be an integer string; got '{cas}'") from exc
     if not kw:
         return None
     return option_cls(**kw)
@@ -128,6 +137,7 @@ def _store_semantics(name: str | None):
             f"store_semantics must be one of {sorted(_STORE_SEMANTICS)}; got '{name}'"
         )
     from couchbase.subdocument import StoreSemantics  # type: ignore
+
     return getattr(StoreSemantics, name.upper())
 
 
@@ -136,7 +146,12 @@ def _store_semantics(name: str | None):
 # Reused schema fragments
 _DURABILITY_SCHEMA = {
     "type": "string",
-    "enum": ["NONE", "MAJORITY", "MAJORITY_AND_PERSIST_TO_ACTIVE", "PERSIST_TO_MAJORITY"],
+    "enum": [
+        "NONE",
+        "MAJORITY",
+        "MAJORITY_AND_PERSIST_TO_ACTIVE",
+        "PERSIST_TO_MAJORITY",
+    ],
     "description": (
         "Optional durability level. Default NONE matches upstream behavior. "
         "MAJORITY waits for replication to majority of replicas; "
@@ -166,7 +181,9 @@ TOOLS: list[Tool] = [
         description="Ping the Couchbase cluster to verify SDK + service connectivity.",
         inputSchema={"type": "object", "properties": {}},
         annotations=ToolAnnotations(
-            readOnlyHint=True, destructiveHint=False, idempotentHint=True,
+            readOnlyHint=True,
+            destructiveHint=False,
+            idempotentHint=True,
         ),
     ),
     Tool(
@@ -178,7 +195,9 @@ TOOLS: list[Tool] = [
             "required": ["key"],
         },
         annotations=ToolAnnotations(
-            readOnlyHint=True, destructiveHint=False, idempotentHint=True,
+            readOnlyHint=True,
+            destructiveHint=False,
+            idempotentHint=True,
         ),
     ),
     Tool(
@@ -198,7 +217,9 @@ TOOLS: list[Tool] = [
             "required": ["key", "document"],
         },
         annotations=ToolAnnotations(
-            readOnlyHint=False, destructiveHint=False, idempotentHint=True,
+            readOnlyHint=False,
+            destructiveHint=False,
+            idempotentHint=True,
         ),
     ),
     Tool(
@@ -218,7 +239,9 @@ TOOLS: list[Tool] = [
             "required": ["key", "document"],
         },
         annotations=ToolAnnotations(
-            readOnlyHint=False, destructiveHint=False, idempotentHint=False,
+            readOnlyHint=False,
+            destructiveHint=False,
+            idempotentHint=False,
         ),
     ),
     Tool(
@@ -240,14 +263,14 @@ TOOLS: list[Tool] = [
             "required": ["key", "document"],
         },
         annotations=ToolAnnotations(
-            readOnlyHint=False, destructiveHint=False, idempotentHint=True,
+            readOnlyHint=False,
+            destructiveHint=False,
+            idempotentHint=True,
         ),
     ),
     Tool(
         name="cb_delete",
-        description=(
-            "Delete a document by key. Optional `durability` and `cas`."
-        ),
+        description=("Delete a document by key. Optional `durability` and `cas`."),
         inputSchema={
             "type": "object",
             "properties": {
@@ -259,7 +282,9 @@ TOOLS: list[Tool] = [
             "required": ["key"],
         },
         annotations=ToolAnnotations(
-            readOnlyHint=False, destructiveHint=True, idempotentHint=True,
+            readOnlyHint=False,
+            destructiveHint=True,
+            idempotentHint=True,
         ),
     ),
     Tool(
@@ -273,7 +298,9 @@ TOOLS: list[Tool] = [
             "required": ["keys"],
         },
         annotations=ToolAnnotations(
-            readOnlyHint=True, destructiveHint=False, idempotentHint=True,
+            readOnlyHint=True,
+            destructiveHint=False,
+            idempotentHint=True,
         ),
     ),
     Tool(
@@ -293,7 +320,9 @@ TOOLS: list[Tool] = [
             "required": ["statement"],
         },
         annotations=ToolAnnotations(
-            readOnlyHint=False, destructiveHint=True, idempotentHint=False,
+            readOnlyHint=False,
+            destructiveHint=True,
+            idempotentHint=False,
         ),
     ),
     Tool(
@@ -311,7 +340,9 @@ TOOLS: list[Tool] = [
             "required": ["index_name", "query"],
         },
         annotations=ToolAnnotations(
-            readOnlyHint=True, destructiveHint=False, idempotentHint=True,
+            readOnlyHint=True,
+            destructiveHint=False,
+            idempotentHint=True,
         ),
     ),
     # ── Phase 6a: subdocument operations ─────────────────────────────────
@@ -332,7 +363,10 @@ TOOLS: list[Tool] = [
                     "items": {
                         "type": "object",
                         "properties": {
-                            "op": {"type": "string", "enum": ["get", "exists", "count"]},
+                            "op": {
+                                "type": "string",
+                                "enum": ["get", "exists", "count"],
+                            },
                             "path": {"type": "string"},
                         },
                         "required": ["op", "path"],
@@ -343,7 +377,9 @@ TOOLS: list[Tool] = [
             "required": ["key", "specs"],
         },
         annotations=ToolAnnotations(
-            readOnlyHint=True, destructiveHint=False, idempotentHint=True,
+            readOnlyHint=True,
+            destructiveHint=False,
+            idempotentHint=True,
         ),
     ),
     Tool(
@@ -369,9 +405,14 @@ TOOLS: list[Tool] = [
                             "op": {
                                 "type": "string",
                                 "enum": [
-                                    "upsert", "insert", "replace", "remove",
-                                    "array_append", "array_prepend",
-                                    "array_insert", "array_add_unique",
+                                    "upsert",
+                                    "insert",
+                                    "replace",
+                                    "remove",
+                                    "array_append",
+                                    "array_prepend",
+                                    "array_insert",
+                                    "array_add_unique",
                                     "counter",
                                 ],
                             },
@@ -404,7 +445,9 @@ TOOLS: list[Tool] = [
             "required": ["key", "ops"],
         },
         annotations=ToolAnnotations(
-            readOnlyHint=False, destructiveHint=False, idempotentHint=False,
+            readOnlyHint=False,
+            destructiveHint=False,
+            idempotentHint=False,
         ),
     ),
 ]
@@ -432,44 +475,68 @@ def handle(name: str, args: dict) -> list[TextContent]:
 
         if name == "cb_get":
             r = collection.get(args["key"])
-            return ok({
-                "key": args["key"],
-                "content": r.content_as[dict],
-                "cas": str(r.cas),
-            })
+            return ok(
+                {
+                    "key": args["key"],
+                    "content": r.content_as[dict],
+                    "cas": str(r.cas),
+                }
+            )
 
         if name == "cb_upsert":
             from couchbase.options import UpsertOptions
+
             opts = _kv_options(
-                UpsertOptions, args.get("durability"), args.get("expiry_seconds"),
+                UpsertOptions,
+                args.get("durability"),
+                args.get("expiry_seconds"),
             )
-            r = collection.upsert(args["key"], args["document"], opts) if opts \
+            r = (
+                collection.upsert(args["key"], args["document"], opts)
+                if opts
                 else collection.upsert(args["key"], args["document"])
+            )
             return ok({"key": args["key"], "cas": str(r.cas), "operation": "upsert"})
 
         if name == "cb_insert":
             from couchbase.options import InsertOptions
+
             opts = _kv_options(
-                InsertOptions, args.get("durability"), args.get("expiry_seconds"),
+                InsertOptions,
+                args.get("durability"),
+                args.get("expiry_seconds"),
             )
-            r = collection.insert(args["key"], args["document"], opts) if opts \
+            r = (
+                collection.insert(args["key"], args["document"], opts)
+                if opts
                 else collection.insert(args["key"], args["document"])
+            )
             return ok({"key": args["key"], "cas": str(r.cas), "operation": "insert"})
 
         if name == "cb_replace":
             from couchbase.options import ReplaceOptions
+
             opts = _kv_options(
-                ReplaceOptions, args.get("durability"),
-                args.get("expiry_seconds"), args.get("cas"),
+                ReplaceOptions,
+                args.get("durability"),
+                args.get("expiry_seconds"),
+                args.get("cas"),
             )
-            r = collection.replace(args["key"], args["document"], opts) if opts \
+            r = (
+                collection.replace(args["key"], args["document"], opts)
+                if opts
                 else collection.replace(args["key"], args["document"])
+            )
             return ok({"key": args["key"], "cas": str(r.cas), "operation": "replace"})
 
         if name == "cb_delete":
             from couchbase.options import RemoveOptions
+
             opts = _kv_options(
-                RemoveOptions, args.get("durability"), None, args.get("cas"),
+                RemoveOptions,
+                args.get("durability"),
+                None,
+                args.get("cas"),
             )
             if opts:
                 collection.remove(args["key"], opts)
@@ -504,19 +571,21 @@ def handle(name: str, args: dict) -> list[TextContent]:
             )
             rows = list(result)
             meta = result.metadata()
-            return ok({
-                "rows": rows,
-                "count": len(rows),
-                "read_only": readonly,
-                "metrics": {
-                    "elapsed": str(meta.metrics().elapsed_time()),
-                    "execution": str(meta.metrics().execution_time()),
-                    "result_count": meta.metrics().result_count(),
-                },
-            })
+            return ok(
+                {
+                    "rows": rows,
+                    "count": len(rows),
+                    "read_only": readonly,
+                    "metrics": {
+                        "elapsed": str(meta.metrics().elapsed_time()),
+                        "execution": str(meta.metrics().execution_time()),
+                        "result_count": meta.metrics().result_count(),
+                    },
+                }
+            )
 
         if name == "cb_fts_search":
-            from couchbase.search import SearchOptions, MatchQuery
+            from couchbase.search import MatchQuery, SearchOptions
 
             limit = args.get("limit", 10)
             fields = args.get("fields", [])
@@ -541,11 +610,13 @@ def handle(name: str, args: dict) -> list[TextContent]:
                     h["fragments"] = row.fragments
                 hits.append(h)
             meta = result.metadata()
-            return ok({
-                "hits": hits,
-                "total_hits": meta.metrics().total_rows(),
-                "took_ms": meta.metrics().took().total_seconds() * 1000,
-            })
+            return ok(
+                {
+                    "hits": hits,
+                    "total_hits": meta.metrics().total_rows(),
+                    "took_ms": meta.metrics().took().total_seconds() * 1000,
+                }
+            )
 
         if name == "cb_lookup_in":
             specs_in = args["specs"]
@@ -567,11 +638,13 @@ def handle(name: str, args: dict) -> list[TextContent]:
                 except Exception as ex:
                     entry["error"] = str(ex)
                 out.append(entry)
-            return ok({
-                "key": args["key"],
-                "cas": str(result.cas),
-                "results": out,
-            })
+            return ok(
+                {
+                    "key": args["key"],
+                    "cas": str(result.cas),
+                    "results": out,
+                }
+            )
 
         if name == "cb_mutate_in":
             from couchbase.options import MutateInOptions
@@ -598,14 +671,19 @@ def handle(name: str, args: dict) -> list[TextContent]:
                     )
 
             opts = MutateInOptions(**kw) if kw else None
-            result = collection.mutate_in(args["key"], sdk_ops, opts) if opts \
+            result = (
+                collection.mutate_in(args["key"], sdk_ops, opts)
+                if opts
                 else collection.mutate_in(args["key"], sdk_ops)
+            )
 
-            return ok({
-                "key": args["key"],
-                "cas": str(result.cas),
-                "operation_count": len(sdk_ops),
-            })
+            return ok(
+                {
+                    "key": args["key"],
+                    "cas": str(result.cas),
+                    "operation_count": len(sdk_ops),
+                }
+            )
 
         return err(f"Unknown data tool: {name}", tool=name)
 

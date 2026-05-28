@@ -23,12 +23,12 @@ mutate the cluster. They are loaded in both read-only and read-write mode.
 from __future__ import annotations
 
 import re
-from typing import Any, Iterable
+from collections.abc import Iterable
+from typing import Any
 
-from mcp.types import Tool, TextContent, ToolAnnotations
+from mcp.types import TextContent, Tool, ToolAnnotations
 
 from .shared import err, get_sdk_connection, ok
-
 
 # ── Plan-tree walking ────────────────────────────────────────────────────────
 
@@ -96,9 +96,7 @@ def _findings_for(summary: dict) -> list[str]:
             "Add a secondary index on the WHERE-clause fields to avoid scanning every document."
         )
     if summary["indexes_used"]:
-        f.append(
-            "Indexes used: " + ", ".join(sorted(set(summary["indexes_used"])))
-        )
+        f.append("Indexes used: " + ", ".join(sorted(set(summary["indexes_used"]))))
     if summary["has_fetch"]:
         f.append(
             "Fetch operator present — the index is not covering. Either include "
@@ -142,7 +140,10 @@ TOOLS: list[Tool] = [
             "properties": {
                 "bucket_name": {"type": "string"},
                 "scope_name": {"type": "string", "description": "default: _default"},
-                "collection_name": {"type": "string", "description": "default: _default"},
+                "collection_name": {
+                    "type": "string",
+                    "description": "default: _default",
+                },
                 "sample_size": {
                     "type": "integer",
                     "description": "How many docs to sample (default 100)",
@@ -151,7 +152,9 @@ TOOLS: list[Tool] = [
             "required": ["bucket_name"],
         },
         annotations=ToolAnnotations(
-            readOnlyHint=True, destructiveHint=False, idempotentHint=True,
+            readOnlyHint=True,
+            destructiveHint=False,
+            idempotentHint=True,
         ),
     ),
     Tool(
@@ -173,7 +176,9 @@ TOOLS: list[Tool] = [
             "required": ["statements"],
         },
         annotations=ToolAnnotations(
-            readOnlyHint=True, destructiveHint=False, idempotentHint=True,
+            readOnlyHint=True,
+            destructiveHint=False,
+            idempotentHint=True,
         ),
     ),
     Tool(
@@ -196,7 +201,9 @@ TOOLS: list[Tool] = [
             "required": ["statement"],
         },
         annotations=ToolAnnotations(
-            readOnlyHint=True, destructiveHint=False, idempotentHint=True,
+            readOnlyHint=True,
+            destructiveHint=False,
+            idempotentHint=True,
         ),
     ),
     Tool(
@@ -213,7 +220,9 @@ TOOLS: list[Tool] = [
             },
         },
         annotations=ToolAnnotations(
-            readOnlyHint=True, destructiveHint=False, idempotentHint=True,
+            readOnlyHint=True,
+            destructiveHint=False,
+            idempotentHint=True,
         ),
     ),
     Tool(
@@ -229,7 +238,9 @@ TOOLS: list[Tool] = [
             },
         },
         annotations=ToolAnnotations(
-            readOnlyHint=True, destructiveHint=False, idempotentHint=True,
+            readOnlyHint=True,
+            destructiveHint=False,
+            idempotentHint=True,
         ),
     ),
     Tool(
@@ -245,7 +256,9 @@ TOOLS: list[Tool] = [
             },
         },
         annotations=ToolAnnotations(
-            readOnlyHint=True, destructiveHint=False, idempotentHint=True,
+            readOnlyHint=True,
+            destructiveHint=False,
+            idempotentHint=True,
         ),
     ),
     Tool(
@@ -262,7 +275,9 @@ TOOLS: list[Tool] = [
             },
         },
         annotations=ToolAnnotations(
-            readOnlyHint=True, destructiveHint=False, idempotentHint=True,
+            readOnlyHint=True,
+            destructiveHint=False,
+            idempotentHint=True,
         ),
     ),
     Tool(
@@ -281,7 +296,9 @@ TOOLS: list[Tool] = [
             },
         },
         annotations=ToolAnnotations(
-            readOnlyHint=True, destructiveHint=False, idempotentHint=True,
+            readOnlyHint=True,
+            destructiveHint=False,
+            idempotentHint=True,
         ),
     ),
     Tool(
@@ -302,7 +319,9 @@ TOOLS: list[Tool] = [
             },
         },
         annotations=ToolAnnotations(
-            readOnlyHint=True, destructiveHint=False, idempotentHint=True,
+            readOnlyHint=True,
+            destructiveHint=False,
+            idempotentHint=True,
         ),
     ),
     Tool(
@@ -328,7 +347,9 @@ TOOLS: list[Tool] = [
             },
         },
         annotations=ToolAnnotations(
-            readOnlyHint=True, destructiveHint=False, idempotentHint=True,
+            readOnlyHint=True,
+            destructiveHint=False,
+            idempotentHint=True,
         ),
     ),
 ]
@@ -419,18 +440,23 @@ def _schema(cluster, QueryOptions, args: dict) -> list[TextContent]:
         ({"name": k, **v} for k, v in fields.items()),
         key=lambda f: -f["total_occurrences"],
     )
-    return ok({
-        "keyspace": f"{bucket}.{scope}.{coll}",
-        "sample_size": sample_size,
-        "field_count": len(fields),
-        "fields": field_list,
-    })
+    return ok(
+        {
+            "keyspace": f"{bucket}.{scope}.{coll}",
+            "sample_size": sample_size,
+            "field_count": len(fields),
+            "fields": field_list,
+        }
+    )
 
 
 def _advisor(cluster, QueryOptions, args: dict) -> list[TextContent]:
     statements = args["statements"]
     if not isinstance(statements, list) or not statements:
-        return err("statements must be a non-empty array of SQL++ strings", tool="cb_index_advisor")
+        return err(
+            "statements must be a non-empty array of SQL++ strings",
+            tool="cb_index_advisor",
+        )
     # ADVISOR accepts a single string or an array. Pass the array directly.
     stmt = "SELECT ADVISOR($stmts) AS recommendations"
     result = cluster.query(stmt, QueryOptions(named_parameters={"stmts": statements}))
@@ -451,12 +477,14 @@ def _explain(cluster, QueryOptions, args: dict) -> list[TextContent]:
     plan_root = rows[0] if rows else {}
     summary = _summarize_plan(plan_root)
     findings = _findings_for(summary)
-    return ok({
-        "statement": statement,
-        "explain_plan": plan_root,
-        "summary": summary,
-        "findings": findings,
-    })
+    return ok(
+        {
+            "statement": statement,
+            "explain_plan": plan_root,
+            "summary": summary,
+            "findings": findings,
+        }
+    )
 
 
 def _perf_longest(cluster, QueryOptions, args: dict) -> list[TextContent]:
@@ -468,7 +496,9 @@ def _perf_longest(cluster, QueryOptions, args: dict) -> list[TextContent]:
         ORDER BY STR_TO_DURATION(elapsedTime) DESC
         LIMIT $lim
     """
-    return _safe_query(cluster, QueryOptions, stmt, {"lim": limit}, "cb_perf_longest_running")
+    return _safe_query(
+        cluster, QueryOptions, stmt, {"lim": limit}, "cb_perf_longest_running"
+    )
 
 
 def _perf_frequent(cluster, QueryOptions, args: dict) -> list[TextContent]:
@@ -484,7 +514,9 @@ def _perf_frequent(cluster, QueryOptions, args: dict) -> list[TextContent]:
         ORDER BY execution_count DESC
         LIMIT $lim
     """
-    return _safe_query(cluster, QueryOptions, stmt, {"lim": limit}, "cb_perf_most_frequent")
+    return _safe_query(
+        cluster, QueryOptions, stmt, {"lim": limit}, "cb_perf_most_frequent"
+    )
 
 
 def _perf_largest_responses(cluster, QueryOptions, args: dict) -> list[TextContent]:
@@ -496,7 +528,9 @@ def _perf_largest_responses(cluster, QueryOptions, args: dict) -> list[TextConte
         ORDER BY resultSize DESC
         LIMIT $lim
     """
-    return _safe_query(cluster, QueryOptions, stmt, {"lim": limit}, "cb_perf_largest_responses")
+    return _safe_query(
+        cluster, QueryOptions, stmt, {"lim": limit}, "cb_perf_largest_responses"
+    )
 
 
 def _perf_large_count(cluster, QueryOptions, args: dict) -> list[TextContent]:
@@ -510,7 +544,10 @@ def _perf_large_count(cluster, QueryOptions, args: dict) -> list[TextContent]:
         LIMIT $lim
     """
     return _safe_query(
-        cluster, QueryOptions, stmt, {"thresh": threshold, "lim": limit},
+        cluster,
+        QueryOptions,
+        stmt,
+        {"thresh": threshold, "lim": limit},
         "cb_perf_large_result_count",
     )
 
@@ -535,7 +572,10 @@ def _perf_primary(cluster, QueryOptions, args: dict) -> list[TextContent]:
     """
     try:
         return _safe_query(
-            cluster, QueryOptions, stmt, {"lim": limit},
+            cluster,
+            QueryOptions,
+            stmt,
+            {"lim": limit},
             "cb_perf_using_primary_index",
         )
     except RuntimeError:
@@ -553,7 +593,9 @@ def _perf_primary_via_explain(cluster, QueryOptions, limit: int) -> list[TextCon
         ORDER BY requestTime DESC
         LIMIT $lim
     """
-    result = cluster.query(recent_stmt, QueryOptions(named_parameters={"lim": limit * 3}))
+    result = cluster.query(
+        recent_stmt, QueryOptions(named_parameters={"lim": limit * 3})
+    )
     candidates = list(result)
     flagged = []
     for cand in candidates:
@@ -569,11 +611,13 @@ def _perf_primary_via_explain(cluster, QueryOptions, limit: int) -> list[TextCon
         except Exception:
             # Skip statements that won't EXPLAIN (DDL, parameter binding issues, etc.)
             continue
-    return ok({
-        "queries": flagged,
-        "method": "explain_fallback",
-        "note": "phaseOperators field not available on this cluster; ran EXPLAIN per query.",
-    })
+    return ok(
+        {
+            "queries": flagged,
+            "method": "explain_fallback",
+            "note": "phaseOperators field not available on this cluster; ran EXPLAIN per query.",
+        }
+    )
 
 
 def _perf_not_covering(cluster, QueryOptions, args: dict) -> list[TextContent]:
@@ -605,13 +649,15 @@ def _perf_not_covering(cluster, QueryOptions, args: dict) -> list[TextContent]:
                 break
         except Exception:
             continue
-    return ok({
-        "queries": flagged,
-        "note": (
-            "Fetch operator indicates the index is not covering. To remove the "
-            "Fetch, ensure all SELECTed fields are in the index keys."
-        ),
-    })
+    return ok(
+        {
+            "queries": flagged,
+            "note": (
+                "Fetch operator indicates the index is not covering. To remove the "
+                "Fetch, ensure all SELECTed fields are in the index keys."
+            ),
+        }
+    )
 
 
 def _perf_not_selective(cluster, QueryOptions, args: dict) -> list[TextContent]:
@@ -632,9 +678,7 @@ def _perf_not_selective(cluster, QueryOptions, args: dict) -> list[TextContent]:
         LIMIT $lim
     """
     try:
-        result = cluster.query(
-            stmt, QueryOptions(named_parameters={"lim": limit * 5})
-        )
+        result = cluster.query(stmt, QueryOptions(named_parameters={"lim": limit * 5}))
     except Exception as exc:
         return err(
             "~phaseCounts field not available on this Couchbase version; "
@@ -658,20 +702,24 @@ def _perf_not_selective(cluster, QueryOptions, args: dict) -> list[TextContent]:
         if len(flagged) >= limit:
             break
 
-    return ok({
-        "queries": flagged,
-        "threshold": {"min_scan_count": min_scan, "max_ratio": max_ratio},
-        "note": (
-            "Low selectivity means the index scan returned far more rows than "
-            "the final result. Tighten predicates or add a more selective index."
-        ),
-    })
+    return ok(
+        {
+            "queries": flagged,
+            "threshold": {"min_scan_count": min_scan, "max_ratio": max_ratio},
+            "note": (
+                "Low selectivity means the index scan returned far more rows than "
+                "the final result. Tighten predicates or add a more selective index."
+            ),
+        }
+    )
 
 
 # ── Shared query helper ──────────────────────────────────────────────────────
 
 
-def _safe_query(cluster, QueryOptions, stmt: str, params: dict, tool_name: str) -> list[TextContent]:
+def _safe_query(
+    cluster, QueryOptions, stmt: str, params: dict, tool_name: str
+) -> list[TextContent]:
     result = cluster.query(stmt, QueryOptions(named_parameters=params))
     rows = list(result)
     return ok({"queries": rows, "count": len(rows)})

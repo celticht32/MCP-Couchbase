@@ -26,10 +26,9 @@ Tools (4):
 
 from __future__ import annotations
 
-from mcp.types import Tool, TextContent, ToolAnnotations
+from mcp.types import TextContent, Tool, ToolAnnotations
 
 from .shared import admin_request, err, ok
-
 
 TOOLS: list[Tool] = [
     Tool(
@@ -42,7 +41,9 @@ TOOLS: list[Tool] = [
         ),
         inputSchema={"type": "object", "properties": {}},
         annotations=ToolAnnotations(
-            readOnlyHint=True, destructiveHint=False, idempotentHint=True,
+            readOnlyHint=True,
+            destructiveHint=False,
+            idempotentHint=True,
         ),
     ),
     Tool(
@@ -80,7 +81,9 @@ TOOLS: list[Tool] = [
             },
         },
         annotations=ToolAnnotations(
-            readOnlyHint=False, destructiveHint=True, idempotentHint=True,
+            readOnlyHint=False,
+            destructiveHint=True,
+            idempotentHint=True,
         ),
     ),
     Tool(
@@ -92,7 +95,9 @@ TOOLS: list[Tool] = [
         ),
         inputSchema={"type": "object", "properties": {}},
         annotations=ToolAnnotations(
-            readOnlyHint=True, destructiveHint=False, idempotentHint=True,
+            readOnlyHint=True,
+            destructiveHint=False,
+            idempotentHint=True,
         ),
     ),
     Tool(
@@ -124,7 +129,9 @@ TOOLS: list[Tool] = [
             },
         },
         annotations=ToolAnnotations(
-            readOnlyHint=False, destructiveHint=True, idempotentHint=True,
+            readOnlyHint=False,
+            destructiveHint=True,
+            idempotentHint=True,
         ),
     ),
 ]
@@ -168,9 +175,7 @@ def handle(name: str, args: dict) -> list[TextContent]:
             return ok(admin_request("GET", "/settings/security/encryptionAtRest"))
 
         if name == "admin_encryption_set":
-            data = _build_form_data(
-                args, exclude={"confirm", "additional_fields"}
-            )
+            data = _build_form_data(args, exclude={"confirm", "additional_fields"})
             return ok(
                 admin_request("POST", "/settings/security/encryptionAtRest", data=data)
             )
@@ -179,9 +184,7 @@ def handle(name: str, args: dict) -> list[TextContent]:
             return ok(admin_request("GET", "/settings/security/kmip"))
 
         if name == "admin_kmip_set":
-            data = _build_form_data(
-                args, exclude={"confirm", "additional_fields"}
-            )
+            data = _build_form_data(args, exclude={"confirm", "additional_fields"})
             return ok(admin_request("POST", "/settings/security/kmip", data=data))
 
         return err(f"Unknown encryption tool: {name}", tool=name)

@@ -9,10 +9,9 @@ Changes from upstream:
 
 from __future__ import annotations
 
-from mcp.types import Tool, TextContent, ToolAnnotations
+from mcp.types import TextContent, Tool, ToolAnnotations
 
-from .shared import admin_request, admin_request_json, err, ok
-
+from .shared import admin_request, admin_request_json, err, form_data, ok, quote_path
 
 TOOLS: list[Tool] = [
     Tool(
@@ -24,7 +23,9 @@ TOOLS: list[Tool] = [
             "required": ["bucket_name"],
         },
         annotations=ToolAnnotations(
-            readOnlyHint=True, destructiveHint=False, idempotentHint=True,
+            readOnlyHint=True,
+            destructiveHint=False,
+            idempotentHint=True,
         ),
     ),
     Tool(
@@ -57,7 +58,9 @@ TOOLS: list[Tool] = [
             "required": ["metric_name"],
         },
         annotations=ToolAnnotations(
-            readOnlyHint=True, destructiveHint=False, idempotentHint=True,
+            readOnlyHint=True,
+            destructiveHint=False,
+            idempotentHint=True,
         ),
     ),
     Tool(
@@ -86,7 +89,9 @@ TOOLS: list[Tool] = [
             "required": ["metrics"],
         },
         annotations=ToolAnnotations(
-            readOnlyHint=True, destructiveHint=False, idempotentHint=True,
+            readOnlyHint=True,
+            destructiveHint=False,
+            idempotentHint=True,
         ),
     ),
     Tool(
@@ -102,7 +107,9 @@ TOOLS: list[Tool] = [
             },
         },
         annotations=ToolAnnotations(
-            readOnlyHint=True, destructiveHint=False, idempotentHint=True,
+            readOnlyHint=True,
+            destructiveHint=False,
+            idempotentHint=True,
         ),
     ),
     Tool(
@@ -110,7 +117,9 @@ TOOLS: list[Tool] = [
         description="Get detailed information about the current node (storage, services, etc.).",
         inputSchema={"type": "object", "properties": {}},
         annotations=ToolAnnotations(
-            readOnlyHint=True, destructiveHint=False, idempotentHint=True,
+            readOnlyHint=True,
+            destructiveHint=False,
+            idempotentHint=True,
         ),
     ),
     Tool(
@@ -118,7 +127,9 @@ TOOLS: list[Tool] = [
         description="Get internal cluster settings (advanced tuning parameters).",
         inputSchema={"type": "object", "properties": {}},
         annotations=ToolAnnotations(
-            readOnlyHint=True, destructiveHint=False, idempotentHint=True,
+            readOnlyHint=True,
+            destructiveHint=False,
+            idempotentHint=True,
         ),
     ),
     Tool(
@@ -139,7 +150,9 @@ TOOLS: list[Tool] = [
             },
         },
         annotations=ToolAnnotations(
-            readOnlyHint=False, destructiveHint=True, idempotentHint=True,
+            readOnlyHint=False,
+            destructiveHint=True,
+            idempotentHint=True,
         ),
     ),
     Tool(
@@ -147,7 +160,9 @@ TOOLS: list[Tool] = [
         description="Get Query Service (N1QL) settings.",
         inputSchema={"type": "object", "properties": {}},
         annotations=ToolAnnotations(
-            readOnlyHint=True, destructiveHint=False, idempotentHint=True,
+            readOnlyHint=True,
+            destructiveHint=False,
+            idempotentHint=True,
         ),
     ),
     Tool(
@@ -173,7 +188,9 @@ TOOLS: list[Tool] = [
             },
         },
         annotations=ToolAnnotations(
-            readOnlyHint=False, destructiveHint=False, idempotentHint=True,
+            readOnlyHint=False,
+            destructiveHint=False,
+            idempotentHint=True,
         ),
     ),
     Tool(
@@ -181,7 +198,9 @@ TOOLS: list[Tool] = [
         description="Get Prometheus scrape target discovery config for the cluster.",
         inputSchema={"type": "object", "properties": {}},
         annotations=ToolAnnotations(
-            readOnlyHint=True, destructiveHint=False, idempotentHint=True,
+            readOnlyHint=True,
+            destructiveHint=False,
+            idempotentHint=True,
         ),
     ),
 ]
@@ -190,11 +209,11 @@ TOOLS: list[Tool] = [
 def handle(name: str, args: dict) -> list[TextContent]:
     try:
         if name == "admin_stats_bucket":
-            b = args["bucket_name"]
+            b = quote_path(args["bucket_name"])
             return ok(admin_request("GET", f"/pools/default/buckets/{b}/stats"))
 
         if name == "admin_stats_single":
-            m = args["metric_name"]
+            m = quote_path(args["metric_name"])
             params: dict = {}
             for k in ("start", "end", "step"):
                 if args.get(k) is not None:
@@ -228,18 +247,14 @@ def handle(name: str, args: dict) -> list[TextContent]:
             return ok(admin_request("GET", "/internalSettings"))
 
         if name == "admin_internal_settings_set":
-            data = {
-                k: str(v)
-                for k, v in args.items()
-                if v is not None and k != "confirm"
-            }
+            data = form_data(args)
             return ok(admin_request("POST", "/internalSettings", data=data))
 
         if name == "admin_query_settings_get":
             return ok(admin_request("GET", "/settings/querySettings"))
 
         if name == "admin_query_settings_set":
-            data = {k: str(v) for k, v in args.items() if v is not None}
+            data = form_data(args)
             return ok(admin_request("POST", "/settings/querySettings", data=data))
 
         if name == "admin_prometheus_targets":

@@ -1,0 +1,121 @@
+# Smithery configuration file: https://smithery.ai/docs/config#smitheryyaml
+#
+# This file lets Smithery.ai host this MCP server for managed deployment.
+# When a user installs the server from the Smithery registry, Smithery will
+# build the Docker image from this repository and start the server on stdio,
+# passing through the configuration values defined in configSchema below.
+
+build:
+  dockerfile: Dockerfile
+  dockerBuildPath: ./
+
+startCommand:
+  type: stdio
+  configSchema:
+    # JSON Schema defining the configuration the user provides when installing
+    # this server. These map to the CB_* environment variables the server
+    # reads at startup. See README.md for the full env-var reference.
+    type: object
+    required:
+      - connectionString
+      - username
+      - password
+    properties:
+      connectionString:
+        type: string
+        title: Connection String
+        description: >
+          Couchbase connection string, e.g. couchbase://localhost or
+          couchbases://cluster.cloud.couchbase.com for TLS / Capella.
+        default: couchbase://localhost
+      username:
+        type: string
+        title: Username
+        description: Couchbase database user (or omit when using mTLS).
+      password:
+        type: string
+        title: Password
+        description: Couchbase database password (or omit when using mTLS).
+      bucket:
+        type: string
+        title: Default Bucket
+        description: Default bucket for data-plane tools.
+        default: default
+      scope:
+        type: string
+        title: Default Scope
+        default: _default
+      collection:
+        type: string
+        title: Default Collection
+        default: _default
+      readOnlyMode:
+        type: boolean
+        title: Read-only mode
+        description: >
+          When true (recommended), all write tools are not loaded; only
+          read tools and DML-blocked query tools are exposed.
+        default: true
+      disabledTools:
+        type: string
+        title: Disabled tools
+        description: >
+          Optional comma-separated list of tool names to exclude from this
+          server instance (e.g. "admin_bucket_delete,admin_node_failover_hard").
+        default: ""
+      caCertPath:
+        type: string
+        title: CA cert path
+        description: >
+          Optional path to a CA certificate PEM file for self-signed clusters.
+          Leave blank when using public CAs (Capella, etc.).
+        default: ""
+      clientCertPath:
+        type: string
+        title: Client cert path (mTLS)
+        description: >
+          Optional client certificate PEM path for mTLS auth. If set together
+          with clientKeyPath, the server uses certificate auth instead of
+          username/password.
+        default: ""
+      clientKeyPath:
+        type: string
+        title: Client key path (mTLS)
+        description: Optional client key PEM path for mTLS auth.
+        default: ""
+      mgmtPort:
+        type: string
+        title: Management port
+        description: >
+          Couchbase Management REST port (default 8091 for plain, 18091 for TLS).
+          Override when the cluster uses non-standard ports.
+        default: ""
+
+  commandFunction: |-
+    (config) => ({
+      command: 'python',
+      args: ['/app/server.py'],
+      env: {
+        CB_CONNECTION_STRING: config.connectionString,
+        CB_USERNAME: config.username || '',
+        CB_PASSWORD: config.password || '',
+        CB_BUCKET: config.bucket || 'default',
+        CB_SCOPE: config.scope || '_default',
+        CB_COLLECTION: config.collection || '_default',
+        CB_MCP_READ_ONLY_MODE: String(config.readOnlyMode !== false),
+        CB_MCP_DISABLED_TOOLS: config.disabledTools || '',
+        CB_CA_CERT_PATH: config.caCertPath || '',
+        CB_CLIENT_CERT_PATH: config.clientCertPath || '',
+        CB_CLIENT_KEY_PATH: config.clientKeyPath || '',
+        CB_MGMT_PORT: config.mgmtPort || '',
+        CB_MCP_TRANSPORT: 'stdio',
+        PYTHONUNBUFFERED: '1'
+      }
+    })
+
+  exampleConfig:
+    connectionString: "couchbases://cb.xxxx.cloud.couchbase.com"
+    username: "appuser"
+    password: "<your-password-here>"
+    bucket: "travel-sample"
+    readOnlyMode: true

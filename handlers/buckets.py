@@ -8,10 +8,9 @@ Changes from upstream:
 
 from __future__ import annotations
 
-from mcp.types import Tool, TextContent, ToolAnnotations
+from mcp.types import TextContent, Tool, ToolAnnotations
 
-from .shared import admin_request, admin_request_json, err, ok
-
+from .shared import admin_request, admin_request_json, err, ok, quote_path
 
 TOOLS: list[Tool] = [
     Tool(
@@ -19,7 +18,9 @@ TOOLS: list[Tool] = [
         description="List all buckets in the cluster.",
         inputSchema={"type": "object", "properties": {}},
         annotations=ToolAnnotations(
-            readOnlyHint=True, destructiveHint=False, idempotentHint=True,
+            readOnlyHint=True,
+            destructiveHint=False,
+            idempotentHint=True,
         ),
     ),
     Tool(
@@ -31,7 +32,9 @@ TOOLS: list[Tool] = [
             "required": ["bucket_name"],
         },
         annotations=ToolAnnotations(
-            readOnlyHint=True, destructiveHint=False, idempotentHint=True,
+            readOnlyHint=True,
+            destructiveHint=False,
+            idempotentHint=True,
         ),
     ),
     Tool(
@@ -66,7 +69,9 @@ TOOLS: list[Tool] = [
             "required": ["name", "ramQuota"],
         },
         annotations=ToolAnnotations(
-            readOnlyHint=False, destructiveHint=False, idempotentHint=False,
+            readOnlyHint=False,
+            destructiveHint=False,
+            idempotentHint=False,
         ),
     ),
     Tool(
@@ -84,7 +89,9 @@ TOOLS: list[Tool] = [
             "required": ["bucket_name"],
         },
         annotations=ToolAnnotations(
-            readOnlyHint=False, destructiveHint=False, idempotentHint=True,
+            readOnlyHint=False,
+            destructiveHint=False,
+            idempotentHint=True,
         ),
     ),
     Tool(
@@ -102,7 +109,9 @@ TOOLS: list[Tool] = [
             "required": ["bucket_name"],
         },
         annotations=ToolAnnotations(
-            readOnlyHint=False, destructiveHint=True, idempotentHint=True,
+            readOnlyHint=False,
+            destructiveHint=True,
+            idempotentHint=True,
         ),
     ),
     Tool(
@@ -120,7 +129,9 @@ TOOLS: list[Tool] = [
             "required": ["bucket_name"],
         },
         annotations=ToolAnnotations(
-            readOnlyHint=False, destructiveHint=True, idempotentHint=False,
+            readOnlyHint=False,
+            destructiveHint=True,
+            idempotentHint=False,
         ),
     ),
     Tool(
@@ -132,7 +143,9 @@ TOOLS: list[Tool] = [
             "required": ["bucket_name"],
         },
         annotations=ToolAnnotations(
-            readOnlyHint=False, destructiveHint=False, idempotentHint=True,
+            readOnlyHint=False,
+            destructiveHint=False,
+            idempotentHint=True,
         ),
     ),
     Tool(
@@ -144,7 +157,9 @@ TOOLS: list[Tool] = [
             "required": ["bucket_name"],
         },
         annotations=ToolAnnotations(
-            readOnlyHint=False, destructiveHint=False, idempotentHint=True,
+            readOnlyHint=False,
+            destructiveHint=False,
+            idempotentHint=True,
         ),
     ),
     Tool(
@@ -152,7 +167,9 @@ TOOLS: list[Tool] = [
         description="List available sample buckets (e.g. travel-sample, beer-sample).",
         inputSchema={"type": "object", "properties": {}},
         annotations=ToolAnnotations(
-            readOnlyHint=True, destructiveHint=False, idempotentHint=True,
+            readOnlyHint=True,
+            destructiveHint=False,
+            idempotentHint=True,
         ),
     ),
     Tool(
@@ -170,7 +187,9 @@ TOOLS: list[Tool] = [
             "required": ["buckets"],
         },
         annotations=ToolAnnotations(
-            readOnlyHint=False, destructiveHint=False, idempotentHint=False,
+            readOnlyHint=False,
+            destructiveHint=False,
+            idempotentHint=False,
         ),
     ),
 ]
@@ -182,7 +201,8 @@ def handle(name: str, args: dict) -> list[TextContent]:
             return ok(admin_request("GET", "/pools/default/buckets"))
 
         if name == "admin_bucket_get":
-            return ok(admin_request("GET", f"/pools/default/buckets/{args['bucket_name']}"))
+            b = quote_path(args["bucket_name"])
+            return ok(admin_request("GET", f"/pools/default/buckets/{b}"))
 
         if name == "admin_bucket_create":
             data = {k: v for k, v in args.items() if v is not None and k != "confirm"}
@@ -191,7 +211,7 @@ def handle(name: str, args: dict) -> list[TextContent]:
             return ok(admin_request("POST", "/pools/default/buckets", data=data))
 
         if name == "admin_bucket_update":
-            bucket = args["bucket_name"]
+            b = quote_path(args["bucket_name"])
             data = {
                 k: v
                 for k, v in args.items()
@@ -199,21 +219,20 @@ def handle(name: str, args: dict) -> list[TextContent]:
             }
             if "ramQuota" in data:
                 data["ramQuotaMB"] = data.pop("ramQuota")
-            return ok(admin_request("POST", f"/pools/default/buckets/{bucket}", data=data))
+            return ok(admin_request("POST", f"/pools/default/buckets/{b}", data=data))
 
         if name == "admin_bucket_delete":
-            return ok(
-                admin_request("DELETE", f"/pools/default/buckets/{args['bucket_name']}")
-            )
+            b = quote_path(args["bucket_name"])
+            return ok(admin_request("DELETE", f"/pools/default/buckets/{b}"))
 
         if name == "admin_bucket_flush":
-            b = args["bucket_name"]
+            b = quote_path(args["bucket_name"])
             return ok(
                 admin_request("POST", f"/pools/default/buckets/{b}/controller/doFlush")
             )
 
         if name == "admin_bucket_compact":
-            b = args["bucket_name"]
+            b = quote_path(args["bucket_name"])
             return ok(
                 admin_request(
                     "POST", f"/pools/default/buckets/{b}/controller/compactBucket"
@@ -221,7 +240,7 @@ def handle(name: str, args: dict) -> list[TextContent]:
             )
 
         if name == "admin_bucket_cancel_compaction":
-            b = args["bucket_name"]
+            b = quote_path(args["bucket_name"])
             return ok(
                 admin_request(
                     "POST",
@@ -235,7 +254,9 @@ def handle(name: str, args: dict) -> list[TextContent]:
         if name == "admin_sample_buckets_install":
             # Endpoint expects a raw JSON array body. Route through unified client.
             return ok(
-                admin_request_json("POST", "/sampleBuckets/install", payload=args["buckets"])
+                admin_request_json(
+                    "POST", "/sampleBuckets/install", payload=args["buckets"]
+                )
             )
 
         return err(f"Unknown bucket tool: {name}", tool=name)

@@ -1,0 +1,68 @@
+# docker-compose.yml — local development stack.
+#
+# Usage:
+#   docker compose up -d
+#
+# Then point your MCP client (Claude Desktop, etc.) at the MCP server.
+# For HTTP transport: http://localhost:8000/mcp
+# For stdio: run `docker compose exec couchbase-mcp python /app/server.py`
+
+services:
+  # Couchbase Server — Community Edition (single-node dev setup)
+  couchbase:
+    image: couchbase:community-7.6.0
+    container_name: couchbase-server
+    ports:
+      - "8091-8096:8091-8096"  # Management UI + service ports
+      - "11210:11210"           # KV / memcached
+      - "11207:11207"           # KV / memcached over TLS
+      - "18091-18096:18091-18096"  # Management UI + service ports over TLS
+    volumes:
+      - couchbase_data:/opt/couchbase/var
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8091/pools"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    ulimits:
+      nofile:
+        soft: 40960
+        hard: 40960
+
+  # The MCP server itself
+  couchbase-mcp:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: celtic/couchbase-mcp:0.9.0
+    container_name: couchbase-mcp
+    depends_on:
+      couchbase:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+    environment:
+      # Connection
+      CB_CONNECTION_STRING: "couchbase://couchbase"
+      CB_USERNAME: "${CB_USERNAME:-Administrator}"
+      CB_PASSWORD: "${CB_PASSWORD:-password}"
+      CB_BUCKET: "${CB_BUCKET:-travel-sample}"
+
+      # Transport — HTTP mode so the MCP server is reachable over the network
+      CB_MCP_TRANSPORT: "http"
+      CB_MCP_HOST: "0.0.0.0"
+      CB_MCP_PORT: "8000"
+
+      # Safety — read-only by default; override to false to enable writes
+      CB_MCP_READ_ONLY_MODE: "${CB_MCP_READ_ONLY_MODE:-true}"
+      CB_MCP_ELICITATION_HINTS: "true"
+
+      # HTTP retries / timeout
+      CB_MCP_HTTP_RETRIES: "3"
+      CB_MCP_HTTP_TIMEOUT: "30"
+    restart: unless-stopped
+
+volumes:
+  couchbase_data:
+    driver: local

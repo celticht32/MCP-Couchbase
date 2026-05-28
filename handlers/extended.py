@@ -25,19 +25,16 @@ Explicitly deferred to Phase 6c:
 
 from __future__ import annotations
 
-from typing import Any
-
-from mcp.types import Tool, TextContent, ToolAnnotations
+from mcp.types import TextContent, Tool, ToolAnnotations
 
 from .shared import (
-    READ_ONLY_MODE,
     admin_request,
     block_dml_if_readonly,
     err,
     get_sdk_connection,
     ok,
+    quote_path,
 )
-
 
 # ── Transaction op translation ───────────────────────────────────────────────
 
@@ -110,7 +107,12 @@ TOOLS: list[Tool] = [
                 },
                 "durability": {
                     "type": "string",
-                    "enum": ["NONE", "MAJORITY", "MAJORITY_AND_PERSIST_TO_ACTIVE", "PERSIST_TO_MAJORITY"],
+                    "enum": [
+                        "NONE",
+                        "MAJORITY",
+                        "MAJORITY_AND_PERSIST_TO_ACTIVE",
+                        "PERSIST_TO_MAJORITY",
+                    ],
                     "description": "Optional per-transaction durability override",
                 },
                 "timeout_seconds": {
@@ -122,7 +124,9 @@ TOOLS: list[Tool] = [
             "required": ["operations"],
         },
         annotations=ToolAnnotations(
-            readOnlyHint=False, destructiveHint=True, idempotentHint=False,
+            readOnlyHint=False,
+            destructiveHint=True,
+            idempotentHint=False,
         ),
     ),
     # ── Analytics service ───────────────────────────────────────────────
@@ -152,7 +156,9 @@ TOOLS: list[Tool] = [
         # destructiveHint mirrors cb_query — the tool stays loaded in read-only
         # mode (special case in server.py) and DML is gated internally.
         annotations=ToolAnnotations(
-            readOnlyHint=False, destructiveHint=True, idempotentHint=False,
+            readOnlyHint=False,
+            destructiveHint=True,
+            idempotentHint=False,
         ),
     ),
     # ── Backup / Restore ────────────────────────────────────────────────
@@ -164,7 +170,9 @@ TOOLS: list[Tool] = [
         ),
         inputSchema={"type": "object", "properties": {}},
         annotations=ToolAnnotations(
-            readOnlyHint=True, destructiveHint=False, idempotentHint=True,
+            readOnlyHint=True,
+            destructiveHint=False,
+            idempotentHint=True,
         ),
     ),
     Tool(
@@ -176,7 +184,9 @@ TOOLS: list[Tool] = [
             "required": ["repository_id"],
         },
         annotations=ToolAnnotations(
-            readOnlyHint=True, destructiveHint=False, idempotentHint=True,
+            readOnlyHint=True,
+            destructiveHint=False,
+            idempotentHint=True,
         ),
     ),
     Tool(
@@ -188,7 +198,9 @@ TOOLS: list[Tool] = [
             "required": ["repository_id"],
         },
         annotations=ToolAnnotations(
-            readOnlyHint=True, destructiveHint=False, idempotentHint=True,
+            readOnlyHint=True,
+            destructiveHint=False,
+            idempotentHint=True,
         ),
     ),
     Tool(
@@ -209,7 +221,9 @@ TOOLS: list[Tool] = [
             "required": ["repository_id"],
         },
         annotations=ToolAnnotations(
-            readOnlyHint=False, destructiveHint=False, idempotentHint=False,
+            readOnlyHint=False,
+            destructiveHint=False,
+            idempotentHint=False,
         ),
     ),
     Tool(
@@ -235,7 +249,9 @@ TOOLS: list[Tool] = [
             "required": ["repository_id", "target"],
         },
         annotations=ToolAnnotations(
-            readOnlyHint=False, destructiveHint=True, idempotentHint=False,
+            readOnlyHint=False,
+            destructiveHint=True,
+            idempotentHint=False,
         ),
     ),
 ]
@@ -256,13 +272,13 @@ def handle(name: str, args: dict) -> list[TextContent]:
             return ok(admin_request("GET", "/_p/backup/api/v1/cluster/self/repository"))
 
         if name == "admin_backup_repository_get":
-            rid = args["repository_id"]
+            rid = quote_path(args["repository_id"])
             return ok(
                 admin_request("GET", f"/_p/backup/api/v1/cluster/self/repository/{rid}")
             )
 
         if name == "admin_backup_list":
-            rid = args["repository_id"]
+            rid = quote_path(args["repository_id"])
             return ok(
                 admin_request(
                     "GET", f"/_p/backup/api/v1/cluster/self/repository/{rid}/backups"
@@ -270,7 +286,7 @@ def handle(name: str, args: dict) -> list[TextContent]:
             )
 
         if name == "admin_backup_run":
-            rid = args["repository_id"]
+            rid = quote_path(args["repository_id"])
             payload: dict = {}
             if args.get("full_backup"):
                 payload["full_backup"] = True
@@ -284,7 +300,7 @@ def handle(name: str, args: dict) -> list[TextContent]:
             )
 
         if name == "admin_backup_restore_run":
-            rid = args["repository_id"]
+            rid = quote_path(args["repository_id"])
             return ok(
                 admin_request(
                     "POST",
@@ -343,11 +359,13 @@ def _transaction(args: dict) -> list[TextContent]:
 
     # Build options if any txn-level args provided.
     try:
-        from couchbase.options import TransactionOptions
         from couchbase.durability import DurabilityLevel
+        from couchbase.options import TransactionOptions
     except ImportError as exc:
-        return err(f"Couchbase SDK transaction support missing: {exc}",
-                   tool="cb_transaction_run")
+        return err(
+            f"Couchbase SDK transaction support missing: {exc}",
+            tool="cb_transaction_run",
+        )
 
     kw: dict = {}
     durability = args.get("durability")
@@ -360,6 +378,7 @@ def _transaction(args: dict) -> list[TextContent]:
             )
     if args.get("timeout_seconds") is not None:
         from datetime import timedelta
+
         kw["timeout"] = timedelta(seconds=int(args["timeout_seconds"]))
 
     opts = TransactionOptions(**kw) if kw else None
@@ -376,12 +395,14 @@ def _transaction(args: dict) -> list[TextContent]:
             operation_count=len(operations),
         )
 
-    return ok({
-        "transaction_id": getattr(result, "transaction_id", None),
-        "unstaging_complete": getattr(result, "unstaging_complete", None),
-        "operation_count": len(operations),
-        "status": "committed",
-    })
+    return ok(
+        {
+            "transaction_id": getattr(result, "transaction_id", None),
+            "unstaging_complete": getattr(result, "unstaging_complete", None),
+            "operation_count": len(operations),
+            "status": "committed",
+        }
+    )
 
 
 def _analytics(args: dict) -> list[TextContent]:
@@ -404,6 +425,7 @@ def _analytics(args: dict) -> list[TextContent]:
         kw["named_parameters"] = args["params"]
     if args.get("timeout_seconds") is not None:
         from datetime import timedelta
+
         kw["timeout"] = timedelta(seconds=int(args["timeout_seconds"]))
 
     opts = AnalyticsOptions(**kw) if kw else AnalyticsOptions()
@@ -411,12 +433,14 @@ def _analytics(args: dict) -> list[TextContent]:
     result = cluster.analytics_query(statement, opts)
     rows = list(result)
     meta = result.metadata()
-    return ok({
-        "rows": rows,
-        "count": len(rows),
-        "metrics": {
-            "elapsed": str(meta.metrics().elapsed_time()),
-            "execution": str(meta.metrics().execution_time()),
-            "result_count": meta.metrics().result_count(),
-        },
-    })
+    return ok(
+        {
+            "rows": rows,
+            "count": len(rows),
+            "metrics": {
+                "elapsed": str(meta.metrics().elapsed_time()),
+                "execution": str(meta.metrics().execution_time()),
+                "result_count": meta.metrics().result_count(),
+            },
+        }
+    )
