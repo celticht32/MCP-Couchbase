@@ -24,7 +24,7 @@ def _fresh_shared():
     os.environ.setdefault("CB_PASSWORD", "password")
     sys.modules.pop("handlers.shared", None)
     sys.modules.pop("handlers", None)
-    import handlers.shared as shared
+    from handlers import shared
 
     return shared
 
@@ -80,7 +80,10 @@ def test_admin_request_url_encodes_params():
 
         mock_open.side_effect = capture
         shared.admin_request("GET", "/p", params={"a": "value with spaces", "b": "1"})
-    assert "a=value+with+spaces" in captured["url"] or "a=value%20with%20spaces" in captured["url"]
+    assert (
+        "a=value+with+spaces" in captured["url"]
+        or "a=value%20with%20spaces" in captured["url"]
+    )
     assert "b=1" in captured["url"]
 
 
@@ -88,6 +91,7 @@ def test_admin_request_sends_form_body_by_default():
     shared = _fresh_shared()
     captured = {}
     with patch("urllib.request.urlopen") as mock_open:
+
         def capture(req, **kwargs):
             captured["body"] = req.data
             captured["content_type"] = req.headers.get("Content-type")
@@ -104,15 +108,14 @@ def test_admin_request_sends_json_body_when_requested():
     shared = _fresh_shared()
     captured = {}
     with patch("urllib.request.urlopen") as mock_open:
+
         def capture(req, **kwargs):
             captured["body"] = req.data
             captured["content_type"] = req.headers.get("Content-type")
             return _make_response(b"{}")
 
         mock_open.side_effect = capture
-        shared.admin_request(
-            "POST", "/p", data={"name": "foo"}, json_body=True
-        )
+        shared.admin_request("POST", "/p", data={"name": "foo"}, json_body=True)
     assert captured["content_type"] == "application/json"
     assert json.loads(captured["body"]) == {"name": "foo"}
 
@@ -122,6 +125,7 @@ def test_admin_request_sends_json_when_data_is_list():
     shared = _fresh_shared()
     captured = {}
     with patch("urllib.request.urlopen") as mock_open:
+
         def capture(req, **kwargs):
             captured["body"] = req.data
             captured["content_type"] = req.headers.get("Content-type")
@@ -137,6 +141,7 @@ def test_admin_request_filters_none_values_in_form():
     shared = _fresh_shared()
     captured = {}
     with patch("urllib.request.urlopen") as mock_open:
+
         def capture(req, **kwargs):
             captured["body"] = req.data
             return _make_response(b"{}")
@@ -157,8 +162,10 @@ def test_admin_request_retries_on_503_then_succeeds():
     # First two calls 503, third succeeds
     bad = HTTPError("http://x", 503, "busy", {}, BytesIO(b'{"e":"busy"}'))
     good = _make_response(b'{"ok":true}')
-    with patch("urllib.request.urlopen") as mock_open, \
-         patch("time.sleep") as mock_sleep:
+    with (
+        patch("urllib.request.urlopen") as mock_open,
+        patch("time.sleep") as mock_sleep,
+    ):
         mock_open.side_effect = [bad, bad, good]
         result = shared.admin_request("GET", "/p")
     assert result == {"ok": True}
@@ -189,8 +196,7 @@ def test_admin_request_retries_on_url_error_then_succeeds():
     shared = _fresh_shared()
     fail = URLError("connection refused")
     good = _make_response(b'{"ok":1}')
-    with patch("urllib.request.urlopen") as mock_open, \
-         patch("time.sleep"):
+    with patch("urllib.request.urlopen") as mock_open, patch("time.sleep"):
         mock_open.side_effect = [fail, good]
         result = shared.admin_request("GET", "/p")
     assert result == {"ok": 1}
@@ -199,8 +205,7 @@ def test_admin_request_retries_on_url_error_then_succeeds():
 def test_admin_request_gives_up_after_max_attempts():
     shared = _fresh_shared()
     bad = HTTPError("http://x", 503, "busy", {}, BytesIO(b""))
-    with patch("urllib.request.urlopen") as mock_open, \
-         patch("time.sleep"):
+    with patch("urllib.request.urlopen") as mock_open, patch("time.sleep"):
         mock_open.side_effect = [bad] * 10
         with pytest.raises(RuntimeError):
             shared.admin_request("GET", "/p")
@@ -211,8 +216,7 @@ def test_admin_request_gives_up_after_max_attempts():
 def test_admin_request_error_includes_method_and_path():
     shared = _fresh_shared()
     bad = HTTPError("http://x", 500, "err", {}, BytesIO(b'{"d":"e"}'))
-    with patch("urllib.request.urlopen") as mock_open, \
-         patch("time.sleep"):
+    with patch("urllib.request.urlopen") as mock_open, patch("time.sleep"):
         mock_open.side_effect = [bad, bad, bad]
         try:
             shared.admin_request("DELETE", "/some/path")

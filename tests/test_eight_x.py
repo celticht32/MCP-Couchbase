@@ -12,8 +12,6 @@ import os
 import sys
 from unittest.mock import patch
 
-import pytest
-
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
@@ -23,6 +21,7 @@ def _fresh_eight_x():
     for m in ("handlers.shared", "handlers.eight_x", "handlers"):
         sys.modules.pop(m, None)
     import handlers.eight_x as e
+
     return e
 
 
@@ -54,8 +53,11 @@ def test_handler_rejects_on_7x_without_hitting_implementation():
         result = e.handle(
             "admin_vector_index_create_hyperscale",
             {
-                "bucket_name": "b", "index_name": "i", "field_name": "f",
-                "dimension": 1536, "similarity": "COSINE",
+                "bucket_name": "b",
+                "index_name": "i",
+                "field_name": "f",
+                "dimension": 1536,
+                "similarity": "COSINE",
             },
         )
     payload = json.loads(result[0].text)
@@ -114,8 +116,11 @@ def test_similarity_rejects_lowercase():
 def test_with_clause_minimal():
     e = _fresh_eight_x()
     w = e._with_clause(
-        dimension=1536, similarity="DOT_PRODUCT",
-        description=None, num_replica=None, defer_build=None,
+        dimension=1536,
+        similarity="DOT_PRODUCT",
+        description=None,
+        num_replica=None,
+        defer_build=None,
     )
     assert '"dimension": 1536' in w
     assert '"similarity": "DOT_PRODUCT"' in w
@@ -126,9 +131,11 @@ def test_with_clause_minimal():
 def test_with_clause_includes_optional_fields():
     e = _fresh_eight_x()
     w = e._with_clause(
-        dimension=768, similarity="COSINE",
+        dimension=768,
+        similarity="COSINE",
         description="my notes",
-        num_replica=2, defer_build=True,
+        num_replica=2,
+        defer_build=True,
     )
     assert '"description": "my notes"' in w
     assert '"num_replica": 2' in w
@@ -139,9 +146,11 @@ def test_with_clause_escapes_description():
     """Description is user input — must survive embedded quotes."""
     e = _fresh_eight_x()
     w = e._with_clause(
-        dimension=1536, similarity="DOT_PRODUCT",
+        dimension=1536,
+        similarity="DOT_PRODUCT",
         description='hello "world"',
-        num_replica=None, defer_build=None,
+        num_replica=None,
+        defer_build=None,
     )
     # json.dumps gives \" escapes
     assert '"hello \\"world\\""' in w
@@ -153,12 +162,17 @@ def test_with_clause_escapes_description():
 def test_composite_rejects_where_with_semicolon():
     e = _fresh_eight_x()
     with patch("handlers.eight_x.is_8x", return_value=True):
-        result = e._vec_composite({
-            "bucket_name": "b", "index_name": "i",
-            "scalar_fields": ["a"], "vector_field": "emb",
-            "dimension": 768, "similarity": "COSINE",
-            "where_clause": "1=1; DROP INDEX foo ON `b`",
-        })
+        result = e._vec_composite(
+            {
+                "bucket_name": "b",
+                "index_name": "i",
+                "scalar_fields": ["a"],
+                "vector_field": "emb",
+                "dimension": 768,
+                "similarity": "COSINE",
+                "where_clause": "1=1; DROP INDEX foo ON `b`",
+            }
+        )
     payload = json.loads(result[0].text)
     assert "error" in payload
     assert "semicolon" in payload["error"]
@@ -167,11 +181,16 @@ def test_composite_rejects_where_with_semicolon():
 def test_composite_rejects_empty_scalar_fields():
     e = _fresh_eight_x()
     with patch("handlers.eight_x.is_8x", return_value=True):
-        result = e._vec_composite({
-            "bucket_name": "b", "index_name": "i",
-            "scalar_fields": [], "vector_field": "emb",
-            "dimension": 768, "similarity": "COSINE",
-        })
+        result = e._vec_composite(
+            {
+                "bucket_name": "b",
+                "index_name": "i",
+                "scalar_fields": [],
+                "vector_field": "emb",
+                "dimension": 768,
+                "similarity": "COSINE",
+            }
+        )
     payload = json.loads(result[0].text)
     assert "error" in payload
     assert "scalar_fields" in payload["error"]
@@ -189,20 +208,26 @@ def test_hyperscale_constructs_correct_statement():
         captured["statement"] = stmt
         # Return a fake ok() response
         from mcp.types import TextContent
+
         return [TextContent(type="text", text=json.dumps({"ok": True}))]
 
-    with patch("handlers.eight_x.is_8x", return_value=True), \
-         patch("handlers.eight_x._run_n1ql", side_effect=fake_run):
-        e.handle("admin_vector_index_create_hyperscale", {
-            "bucket_name": "travel-sample",
-            "scope_name": "inventory",
-            "collection_name": "airport",
-            "index_name": "idx_emb",
-            "field_name": "embedding",
-            "dimension": 1536,
-            "similarity": "DOT_PRODUCT",
-            "defer_build": True,
-        })
+    with (
+        patch("handlers.eight_x.is_8x", return_value=True),
+        patch("handlers.eight_x._run_n1ql", side_effect=fake_run),
+    ):
+        e.handle(
+            "admin_vector_index_create_hyperscale",
+            {
+                "bucket_name": "travel-sample",
+                "scope_name": "inventory",
+                "collection_name": "airport",
+                "index_name": "idx_emb",
+                "field_name": "embedding",
+                "dimension": 1536,
+                "similarity": "DOT_PRODUCT",
+                "defer_build": True,
+            },
+        )
 
     stmt = captured["statement"]
     assert "CREATE HYPERSCALE VECTOR INDEX" in stmt
@@ -221,21 +246,27 @@ def test_composite_constructs_correct_statement():
     def fake_run(stmt):
         captured["statement"] = stmt
         from mcp.types import TextContent
+
         return [TextContent(type="text", text=json.dumps({"ok": True}))]
 
-    with patch("handlers.eight_x.is_8x", return_value=True), \
-         patch("handlers.eight_x._run_n1ql", side_effect=fake_run):
-        e.handle("admin_vector_index_create_composite", {
-            "bucket_name": "b",
-            "scope_name": "s",
-            "collection_name": "c",
-            "index_name": "idx_filt",
-            "scalar_fields": ["tenant_id", "status"],
-            "vector_field": "embedding",
-            "where_clause": "deleted = false",
-            "dimension": 768,
-            "similarity": "COSINE",
-        })
+    with (
+        patch("handlers.eight_x.is_8x", return_value=True),
+        patch("handlers.eight_x._run_n1ql", side_effect=fake_run),
+    ):
+        e.handle(
+            "admin_vector_index_create_composite",
+            {
+                "bucket_name": "b",
+                "scope_name": "s",
+                "collection_name": "c",
+                "index_name": "idx_filt",
+                "scalar_fields": ["tenant_id", "status"],
+                "vector_field": "embedding",
+                "where_clause": "deleted = false",
+                "dimension": 768,
+                "similarity": "COSINE",
+            },
+        )
 
     stmt = captured["statement"]
     assert "CREATE COMPOSITE VECTOR INDEX" in stmt
@@ -254,15 +285,24 @@ def test_composite_handles_no_where():
     def fake_run(stmt):
         captured["statement"] = stmt
         from mcp.types import TextContent
+
         return [TextContent(type="text", text=json.dumps({"ok": True}))]
 
-    with patch("handlers.eight_x.is_8x", return_value=True), \
-         patch("handlers.eight_x._run_n1ql", side_effect=fake_run):
-        e.handle("admin_vector_index_create_composite", {
-            "bucket_name": "b", "index_name": "i",
-            "scalar_fields": ["a"], "vector_field": "v",
-            "dimension": 128, "similarity": "L2_SQUARED",
-        })
+    with (
+        patch("handlers.eight_x.is_8x", return_value=True),
+        patch("handlers.eight_x._run_n1ql", side_effect=fake_run),
+    ):
+        e.handle(
+            "admin_vector_index_create_composite",
+            {
+                "bucket_name": "b",
+                "index_name": "i",
+                "scalar_fields": ["a"],
+                "vector_field": "v",
+                "dimension": 128,
+                "similarity": "L2_SQUARED",
+            },
+        )
 
     assert "WHERE" not in captured["statement"]
 
@@ -279,8 +319,10 @@ def test_user_lock_calls_correct_endpoint():
         captured["path"] = path
         return {"status": "ok"}
 
-    with patch("handlers.eight_x.is_8x", return_value=True), \
-         patch("handlers.eight_x.admin_request", side_effect=fake_admin_request):
+    with (
+        patch("handlers.eight_x.is_8x", return_value=True),
+        patch("handlers.eight_x.admin_request", side_effect=fake_admin_request),
+    ):
         e.handle("admin_user_lock", {"username": "alice", "confirm": True})
 
     assert captured["method"] == "POST"
@@ -296,8 +338,10 @@ def test_user_unlock_calls_correct_endpoint():
         captured["path"] = path
         return {"status": "ok"}
 
-    with patch("handlers.eight_x.is_8x", return_value=True), \
-         patch("handlers.eight_x.admin_request", side_effect=fake_admin_request):
+    with (
+        patch("handlers.eight_x.is_8x", return_value=True),
+        patch("handlers.eight_x.admin_request", side_effect=fake_admin_request),
+    ):
         e.handle("admin_user_unlock", {"username": "alice"})
 
     assert captured["method"] == "POST"
@@ -314,14 +358,19 @@ def test_user_temp_sets_temporary_password_flag():
         captured["data"] = kwargs.get("data")
         return {"status": "ok"}
 
-    with patch("handlers.eight_x.is_8x", return_value=True), \
-         patch("handlers.eight_x.admin_request", side_effect=fake_admin_request):
-        e.handle("admin_user_create_temporary", {
-            "username": "bob",
-            "password": "Temp123!",
-            "roles": "data_reader[bucket:*:*]",
-            "name": "Bob",
-        })
+    with (
+        patch("handlers.eight_x.is_8x", return_value=True),
+        patch("handlers.eight_x.admin_request", side_effect=fake_admin_request),
+    ):
+        e.handle(
+            "admin_user_create_temporary",
+            {
+                "username": "bob",
+                "password": "Temp123!",
+                "roles": "data_reader[bucket:*:*]",
+                "name": "Bob",
+            },
+        )
 
     assert captured["method"] == "PUT"
     assert captured["path"] == "/settings/rbac/users/local/bob"

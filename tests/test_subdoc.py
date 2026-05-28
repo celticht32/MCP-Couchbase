@@ -8,7 +8,6 @@ Run from the project root:
     python -m pytest tests/test_subdoc.py -v
 """
 
-import json
 import os
 import sys
 
@@ -23,6 +22,7 @@ def _fresh_data():
     for m in ("handlers.shared", "handlers.data", "handlers"):
         sys.modules.pop(m, None)
     import handlers.data as d
+
     return d
 
 
@@ -41,8 +41,14 @@ def test_parse_durability_valid_levels():
     from couchbase.durability import DurabilityLevel
 
     assert d._parse_durability("MAJORITY") == DurabilityLevel.MAJORITY
-    assert d._parse_durability("MAJORITY_AND_PERSIST_TO_ACTIVE") == DurabilityLevel.MAJORITY_AND_PERSIST_TO_ACTIVE
-    assert d._parse_durability("PERSIST_TO_MAJORITY") == DurabilityLevel.PERSIST_TO_MAJORITY
+    assert (
+        d._parse_durability("MAJORITY_AND_PERSIST_TO_ACTIVE")
+        == DurabilityLevel.MAJORITY_AND_PERSIST_TO_ACTIVE
+    )
+    assert (
+        d._parse_durability("PERSIST_TO_MAJORITY")
+        == DurabilityLevel.PERSIST_TO_MAJORITY
+    )
 
 
 def test_parse_durability_rejects_unknown():
@@ -149,10 +155,14 @@ def test_translate_mutate_upsert():
 
 def test_translate_mutate_insert_with_create_parents():
     d = _fresh_data()
-    spec = d._translate_mutate_spec({
-        "op": "insert", "path": "nested.new.field",
-        "value": 42, "create_parents": True,
-    })
+    spec = d._translate_mutate_spec(
+        {
+            "op": "insert",
+            "path": "nested.new.field",
+            "value": 42,
+            "create_parents": True,
+        }
+    )
     assert spec is not None
 
 
@@ -257,7 +267,9 @@ def test_durability_enum_matches_sdk_levels():
 
     upsert = next(t for t in d.TOOLS if t.name == "cb_upsert")
     schema_levels = set(upsert.inputSchema["properties"]["durability"]["enum"])
-    sdk_levels = {x for x in dir(DurabilityLevel) if x.isupper() and not x.startswith("_")}
+    sdk_levels = {
+        x for x in dir(DurabilityLevel) if x.isupper() and not x.startswith("_")
+    }
     # NONE is included in schema explicitly even though it maps to "no option"
     assert schema_levels == sdk_levels
 

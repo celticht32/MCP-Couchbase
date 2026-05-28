@@ -9,8 +9,6 @@ Run from the project root:
 import os
 import sys
 
-import pytest
-
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
@@ -20,6 +18,7 @@ def _fresh_diagnostics():
     for m in ("handlers.shared", "handlers.diagnostics", "handlers"):
         sys.modules.pop(m, None)
     import handlers.diagnostics as d
+
     return d
 
 
@@ -171,26 +170,30 @@ def test_summarize_empty_plan():
 
 def test_findings_for_primary_scan():
     d = _fresh_diagnostics()
-    findings = d._findings_for({
-        "operators": ["PrimaryScan3"],
-        "indexes_used": [],
-        "has_primary_scan": True,
-        "has_fetch": False,
-        "has_filter_after_scan": False,
-    })
+    findings = d._findings_for(
+        {
+            "operators": ["PrimaryScan3"],
+            "indexes_used": [],
+            "has_primary_scan": True,
+            "has_fetch": False,
+            "has_filter_after_scan": False,
+        }
+    )
     assert any("Primary key scan" in f for f in findings)
     assert any("secondary index" in f for f in findings)
 
 
 def test_findings_for_covering_index():
     d = _fresh_diagnostics()
-    findings = d._findings_for({
-        "operators": ["IndexScan3"],
-        "indexes_used": ["idx_x"],
-        "has_primary_scan": False,
-        "has_fetch": False,
-        "has_filter_after_scan": False,
-    })
+    findings = d._findings_for(
+        {
+            "operators": ["IndexScan3"],
+            "indexes_used": ["idx_x"],
+            "has_primary_scan": False,
+            "has_fetch": False,
+            "has_filter_after_scan": False,
+        }
+    )
     # Should mention the index used
     assert any("idx_x" in f for f in findings)
     # Should NOT mention Fetch
@@ -201,37 +204,43 @@ def test_findings_for_covering_index():
 
 def test_findings_for_non_covering():
     d = _fresh_diagnostics()
-    findings = d._findings_for({
-        "operators": ["IndexScan3", "Fetch"],
-        "indexes_used": ["idx_x"],
-        "has_primary_scan": False,
-        "has_fetch": True,
-        "has_filter_after_scan": False,
-    })
+    findings = d._findings_for(
+        {
+            "operators": ["IndexScan3", "Fetch"],
+            "indexes_used": ["idx_x"],
+            "has_primary_scan": False,
+            "has_fetch": True,
+            "has_filter_after_scan": False,
+        }
+    )
     assert any("not covering" in f for f in findings)
 
 
 def test_findings_for_filter_pushdown_issue():
     d = _fresh_diagnostics()
-    findings = d._findings_for({
-        "operators": ["IndexScan3", "Filter"],
-        "indexes_used": ["idx_x"],
-        "has_primary_scan": False,
-        "has_fetch": False,
-        "has_filter_after_scan": True,
-    })
+    findings = d._findings_for(
+        {
+            "operators": ["IndexScan3", "Filter"],
+            "indexes_used": ["idx_x"],
+            "has_primary_scan": False,
+            "has_fetch": False,
+            "has_filter_after_scan": True,
+        }
+    )
     assert any("pushed down" in f for f in findings)
 
 
 def test_findings_empty_plan_warning():
     d = _fresh_diagnostics()
-    findings = d._findings_for({
-        "operators": [],
-        "indexes_used": [],
-        "has_primary_scan": False,
-        "has_fetch": False,
-        "has_filter_after_scan": False,
-    })
+    findings = d._findings_for(
+        {
+            "operators": [],
+            "indexes_used": [],
+            "has_primary_scan": False,
+            "has_fetch": False,
+            "has_filter_after_scan": False,
+        }
+    )
     assert any("Plan was empty" in f for f in findings)
 
 
@@ -279,7 +288,9 @@ def test_all_diagnostics_tools_are_read_only():
     d = _fresh_diagnostics()
     for t in d.TOOLS:
         assert t.annotations.readOnlyHint is True, f"{t.name} should be read-only"
-        assert t.annotations.destructiveHint is False, f"{t.name} should not be destructive"
+        assert t.annotations.destructiveHint is False, (
+            f"{t.name} should not be destructive"
+        )
 
 
 def test_diagnostics_tools_have_required_naming():

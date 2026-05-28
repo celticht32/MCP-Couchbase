@@ -12,8 +12,6 @@ import json
 import os
 import sys
 
-import pytest
-
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
@@ -22,7 +20,7 @@ def _fresh_indexes():
     os.environ.setdefault("CB_PASSWORD", "password")
     for m in ("handlers.shared", "handlers.indexes", "handlers"):
         sys.modules.pop(m, None)
-    import handlers.indexes as indexes
+    from handlers import indexes
 
     return indexes
 
@@ -48,9 +46,7 @@ def test_index_create_rejects_delete():
 def test_index_create_rejects_drop():
     """DROP belongs to admin_index_drop; reject it here."""
     indexes = _fresh_indexes()
-    result = indexes.handle(
-        "admin_index_create", {"statement": "DROP INDEX foo ON t"}
-    )
+    result = indexes.handle("admin_index_create", {"statement": "DROP INDEX foo ON t"})
     payload = json.loads(result[0].text)
     assert "error" in payload
 

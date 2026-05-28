@@ -14,8 +14,6 @@ import os
 import sys
 from unittest.mock import patch
 
-import pytest
-
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
@@ -25,6 +23,7 @@ def _fresh_eventing():
     for m in ("handlers.shared", "handlers.eventing", "handlers"):
         sys.modules.pop(m, None)
     import handlers.eventing as e
+
     return e
 
 
@@ -83,7 +82,9 @@ def test_deploy_undeploy_pause_resume_paths():
             e.handle(tool_name, {"function_name": "fn", "confirm": True})
         assert calls[0]["method"] == "POST"
         expected = f"/_p/event/api/v1/functions/fn{suffix}"
-        assert calls[0]["path"] == expected, f"{tool_name} wrong path: {calls[0]['path']}"
+        assert calls[0]["path"] == expected, (
+            f"{tool_name} wrong path: {calls[0]['path']}"
+        )
 
 
 def test_stats_path():
@@ -116,15 +117,21 @@ def test_create_or_update_uses_json_payload():
         return {"status": "ok"}
 
     with patch("handlers.eventing.admin_request_json", side_effect=fake_json):
-        e.handle("admin_eventing_create_or_update", {
-            "function_name": "myfn",
-            "definition": {
-                "appname": "myfn",
-                "appcode": "function OnUpdate(doc, meta) { log(meta.id); }",
-                "depcfg": {"source_bucket": "src", "metadata_bucket": "meta"},
-                "settings": {"deployment_status": False, "processing_status": False},
+        e.handle(
+            "admin_eventing_create_or_update",
+            {
+                "function_name": "myfn",
+                "definition": {
+                    "appname": "myfn",
+                    "appcode": "function OnUpdate(doc, meta) { log(meta.id); }",
+                    "depcfg": {"source_bucket": "src", "metadata_bucket": "meta"},
+                    "settings": {
+                        "deployment_status": False,
+                        "processing_status": False,
+                    },
+                },
             },
-        })
+        )
     assert captured["method"] == "POST"
     assert captured["path"] == "/_p/event/api/v1/functions/myfn"
     assert captured["payload"]["appname"] == "myfn"
@@ -213,8 +220,12 @@ def test_eventing_expected_names():
 
 def test_eventing_reads_are_read_only():
     e = _fresh_eventing()
-    read_tools = ("admin_eventing_list", "admin_eventing_get",
-                  "admin_eventing_stats", "admin_eventing_status")
+    read_tools = (
+        "admin_eventing_list",
+        "admin_eventing_get",
+        "admin_eventing_stats",
+        "admin_eventing_status",
+    )
     for name in read_tools:
         t = next(tt for tt in e.TOOLS if tt.name == name)
         assert t.annotations.readOnlyHint is True, f"{name} should be read-only"
