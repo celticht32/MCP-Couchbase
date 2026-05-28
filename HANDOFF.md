@@ -38,13 +38,19 @@ handlers/
   mcp_status.py             # Server introspection                      (3)
 tests/
   conftest.py               # Shared fixtures, integration skip markers
-  test_safety.py            # 135 unit tests, no cluster required
+  test_safety.py            # 141 unit tests, no cluster required
 skills/
   couchbase-sqlpp-tuning/   # LLM skill — diagnose and fix slow SQL++ queries
     SKILL.md                # Router with core principles
-    references/             # 6 deep references (explain plan, index design,
+    references/             # 7 deep references (explain plan, index design,
                             # query patterns, CBO, diagnostic workflow,
                             # pagination, joins)
+gui/
+  gui_server.py             # Flask backend for the cluster GUI (151 tools)
+  static/                   # React SPA (not in this repo's tree)
+gui-capella/
+  gui_server.py             # Flask backend for the Capella v4 GUI (16 tools)
+  static/                   # Capella-themed React SPA
 pyproject.toml              # hatchling build, uv lock, ruff/pytest config
 .pre-commit-config.yaml     # Matches official Couchbase MCP repo
 Dockerfile                  # Multi-stage Python 3.12-slim, non-root
@@ -96,7 +102,7 @@ The merge uses the **handler module pattern** rather than `@mcp.tool()` decorato
 
 The PR proposal in the GitHub issue formalizes this pattern and asks for maintainer alignment before opening the PR.
 
-## Bug history (23 bugs fixed across iterative scan passes)
+## Bug history (29 bugs fixed across iterative scan passes)
 
 1. `security.py` `admin_user_change_password` — was using `PUT` with only password, wiped user roles. Fixed to use `POST /controller/changePassword`.
 2. `collections.py` `maxTTL` — was string, must be int.
@@ -118,6 +124,12 @@ The PR proposal in the GitHub issue formalizes this pattern and asks for maintai
 21. `.gitignore` — no patterns for `*.pem` / `*.key` / `*.crt` / `*.p12`. Easy to accidentally commit a Couchbase TLS cert. Added secret-material patterns plus `secrets/`, `credentials.json`.
 22. `server.py` `_main_http` — used `asyncio.TaskGroup` (3.11+) but `pyproject.toml` declares `requires-python>=3.10`. CI failed on the Python 3.10 matrix job. Replaced with `asyncio.gather` for the two-task case (equivalent semantics: first failure cancels the other and propagates).
 23. `tests/test_safety.py` `test_pyproject_entry_point_points_at_sync_main` — used `import tomllib` (stdlib only on 3.11+). Same CI failure. Added a 3.10-safe fallback to `tomli` (added to `dev` extras with a `python_version<'3.11'` marker) and a new regression test `test_no_python_311_only_stdlib_in_runtime_code` that scans all runtime code for `asyncio.TaskGroup`, `ExceptionGroup`, `tomllib` imports, `except*`, and `typing.Self` — so this class of CI failure can't recur silently.
+24. `gui/gui_server.py` — duplicated `app = Flask(...)` + `CORS(app)` on consecutive lines from a botched earlier patch. The second one silently shadowed the first; Flask still worked but the `CORS(app)` call was applied twice. Cleaned up to a single instance.
+25. `gui/gui_server.py` and `gui-capella/gui_server.py` — `CORS(app)` with no args allowed every origin. Restricted to localhost/127.0.0.1/::1 origins so a malicious page can't fire calls at a local MCP GUI.
+26. `gui/gui_server.py` `/api/config` POST accepted ARBITRARY `os.environ` writes from the request body. An attacker (LAN-reachable or via CORS exploit) could set `PATH`, `LD_PRELOAD`, `PYTHONPATH`, etc., on the running server. Added a `_CONFIG_ALLOWLIST` of permitted `CB_*` / `CAPELLA_*` keys; everything else is rejected. Same fix applied to `gui-capella/gui_server.py`.
+27. `gui/gui_server.py` `/api/config` GET returned `CB_PASSWORD` in cleartext to anyone who hit the endpoint. Added `_REDACTED_FIELDS` and a `_redact()` helper that returns `"********"` for password / API-key fields.
+28. `gui/gui_server.py` `/api/call` bypassed every safety primitive — no `READ_ONLY_MODE` filter, no `DISABLED_TOOLS`, no confirmation gate. Any destructive admin tool could be invoked through the GUI even with `CB_MCP_READ_ONLY_MODE=true` set. Now imports the same primitives from `handlers.shared` and applies them in `/api/call`, with parity to `server.py`'s tool-call gate.
+29. Both GUIs had `app.run(host="0.0.0.0", port=port, debug=True)` — bound to every interface AND enabled the Werkzeug debugger (full RCE on any reachable client). Now: bind defaults to `127.0.0.1`, `0.0.0.0` requires an explicit `CB_GUI_ALLOW_REMOTE=1`, and `debug` defaults to `False` and reads from `FLASK_DEBUG`.
 
 ## Shared helpers introduced
 
@@ -132,7 +144,7 @@ Any new handler accepting user-supplied identifiers in URL paths or boolean form
 ## Tests
 
 ```bash
-# Unit tests only (no cluster) — 135 tests, all passing
+# Unit tests only (no cluster) — 141 tests, all passing
 pytest tests/ -m unit -v
 
 # Integration tests (requires live cluster)
@@ -162,7 +174,7 @@ The GitHub issue draft (in the prior conversation summary) describes scope, arch
 # 1. Lint and format clean
 ruff check . && ruff format --check .
 
-# 2. All unit tests pass (135 tests, no cluster needed)
+# 2. All unit tests pass (141 tests, no cluster needed)
 pytest tests/ -m unit
 
 # 3. Server starts (kills immediately — just to verify imports)

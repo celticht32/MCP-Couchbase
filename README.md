@@ -484,12 +484,34 @@ The project ships an LLM skill at [`skills/couchbase-sqlpp-tuning/`](skills/couc
 - Reading EXPLAIN plans (operators, signs of bad plans, profile timings)
 - Index design (covering, partial, array, composite, functional, vector)
 - Common anti-patterns (PrimaryScan, IntersectScan, EVERY without ANY, deep pagination)
-- The 7.6+ cost-based optimizer and its hints
+- The cost-based optimizer (GA in 7.0; auto-stats and hints in 7.6+)
 - The five-step diagnostic workflow using the MCP server tools
 - Pagination patterns (LIMIT/OFFSET vs KeySet)
 - Tuning joins between keyspaces
 
 Drop the `skills/couchbase-sqlpp-tuning/` directory into Claude's skills path to make it available in conversations.
+
+---
+
+## Browser GUI (optional)
+
+Two Flask backends ship with the project for users who want a browser console rather than (or in addition to) an MCP client:
+
+| Server | Port | Purpose |
+|---|---|---|
+| `gui/gui_server.py` | 5173 | Main cluster console — 151 tools (everything except Capella v4) |
+| `gui-capella/gui_server.py` | 5174 | Capella v4 control-plane console — 16 read-only tools |
+
+Run either with `python gui/gui_server.py` or `python gui-capella/gui_server.py`. Both serve a React SPA from `static/` (front-end not in the repo).
+
+**Security defaults — important:**
+
+- Bind to `127.0.0.1` only. Setting `GUI_HOST=0.0.0.0` additionally requires `CB_GUI_ALLOW_REMOTE=1` to take effect.
+- `debug=False`. The Werkzeug debugger is a remote-code-execution vector and is gated behind `FLASK_DEBUG=1`.
+- CORS is restricted to `localhost` / `127.0.0.1` / `[::1]` origins.
+- `/api/config` POST writes only to an allow-list of `CB_*` / `CAPELLA_*` env vars; arbitrary keys are rejected.
+- `/api/config` GET redacts `CB_PASSWORD` and `CAPELLA_API_KEY_SECRET` to `********`.
+- `/api/call` enforces the same gates as the MCP server: `CB_MCP_READ_ONLY_MODE`, `CB_MCP_DISABLED_TOOLS`, and the `confirm: true` argument for destructive tools.
 
 ---
 

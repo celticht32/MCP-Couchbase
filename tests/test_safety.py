@@ -1747,3 +1747,145 @@ def test_no_python_311_only_stdlib_in_runtime_code():
         "Found Python 3.11+ stdlib usage in runtime code without a version guard:\n"
         + "\n".join(findings)
     )
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# GUI security regressions
+# ═══════════════════════════════════════════════════════════════════════════════
+
+
+@pytest.mark.unit
+def test_gui_files_dont_bind_remote_by_default():
+    """Both GUI servers must NOT default to host='0.0.0.0' on app.run.
+    A 0.0.0.0 default exposes the GUI to the LAN; the user must opt in via
+    GUI_HOST=0.0.0.0 + CB_GUI_ALLOW_REMOTE=1.
+    """
+    import pathlib
+
+    root = pathlib.Path(__file__).parent.parent
+    for path in ("gui/gui_server.py", "gui-capella/gui_server.py"):
+        f = root / path
+        if not f.exists():
+            continue  # GUI not in this build
+        content = f.read_text()
+        # Look for raw `app.run(host="0.0.0.0"` — if found, that's a default bind
+        assert 'app.run(host="0.0.0.0"' not in content, (
+            f"{path} binds to 0.0.0.0 unconditionally — should default to 127.0.0.1"
+        )
+
+
+@pytest.mark.unit
+def test_gui_files_dont_default_debug_true():
+    """Flask debug=True exposes the Werkzeug interactive debugger, which is
+    full RCE if the port is reachable. Must NOT be the default."""
+    import pathlib
+
+    root = pathlib.Path(__file__).parent.parent
+    for path in ("gui/gui_server.py", "gui-capella/gui_server.py"):
+        f = root / path
+        if not f.exists():
+            continue
+        # Scan line by line, skipping comments/docstring lines, looking for the
+        # literal `debug=True` in code (not as substring of `debug=debug` etc.)
+        in_docstring = False
+        for i, line in enumerate(f.read_text().splitlines(), 1):
+            stripped = line.strip()
+            # Toggle docstring state on triple-quote
+            if '"""' in stripped:
+                in_docstring = not in_docstring or stripped.count('"""') >= 2
+                continue
+            if in_docstring or stripped.startswith("#"):
+                continue
+            # Only flag `debug=True,` or `debug=True)` — actual code
+            if "debug=True," in line or "debug=True)" in line:
+                raise AssertionError(
+                    f"{path}:{i} hardcodes debug=True — read from env, default False"
+                )
+
+
+@pytest.mark.unit
+def test_gui_files_use_cors_allowlist():
+    """Both GUI servers must restrict CORS to localhost origins, not allow *."""
+    import pathlib
+
+    root = pathlib.Path(__file__).parent.parent
+    for path in ("gui/gui_server.py", "gui-capella/gui_server.py"):
+        f = root / path
+        if not f.exists():
+            continue
+        content = f.read_text()
+        # `CORS(app)` with no args allows everything — the fix is to pass `origins=`
+        # Look for any CORS call and ensure it has 'origins=' on the same logical call
+        cors_idx = content.find("CORS(app")
+        if cors_idx == -1:
+            continue  # GUI doesn't use flask-cors at all
+        # Find the matching close paren — heuristic: look for closing ) within next 500 chars
+        snippet = content[cors_idx : cors_idx + 500]
+        close = snippet.find(")")
+        assert close != -1, f"{path}: couldn't find end of CORS(...) call"
+        call = snippet[: close + 1]
+        assert "origins=" in call, (
+            f"{path}: CORS call must specify origins= (found: {call!r})"
+        )
+
+
+@pytest.mark.unit
+def test_gui_config_endpoint_uses_allowlist():
+    """The /api/config POST handler must use an explicit allow-list constant
+    for which env vars can be set via the GUI, not accept arbitrary keys."""
+    import pathlib
+
+    root = pathlib.Path(__file__).parent.parent
+    for path in ("gui/gui_server.py", "gui-capella/gui_server.py"):
+        f = root / path
+        if not f.exists():
+            continue
+        content = f.read_text()
+        # Look for the _CONFIG_ALLOWLIST set
+        assert "_CONFIG_ALLOWLIST" in content, (
+            f"{path}: must define _CONFIG_ALLOWLIST for env-var write protection"
+        )
+        # And use it in the config POST handler
+        assert "_CONFIG_ALLOWLIST" in content.split("def config")[-1], (
+            f"{path}: config() handler must check against _CONFIG_ALLOWLIST"
+        )
+
+
+@pytest.mark.unit
+def test_gui_redacts_secrets():
+    """The main GUI's /api/config GET must redact CB_PASSWORD."""
+    import pathlib
+
+    root = pathlib.Path(__file__).parent.parent
+    main_gui = root / "gui" / "gui_server.py"
+    if not main_gui.exists():
+        return
+    content = main_gui.read_text()
+    # Should declare a redaction set and use it
+    assert "_REDACTED_FIELDS" in content
+    assert "CB_PASSWORD" in content
+    # Make sure CB_PASSWORD isn't returned raw — it should go through _redact()
+    # Find the GET branch of /api/config and confirm
+    assert "_redact(" in content, (
+        "gui/gui_server.py must use a redaction helper for password fields"
+    )
+
+
+@pytest.mark.unit
+def test_gui_call_endpoint_filters_read_only_mode():
+    """The main GUI's /api/call must apply READ_ONLY_MODE filtering, the same
+    way server.py does. Without it the GUI bypasses every safety primitive."""
+    import pathlib
+
+    root = pathlib.Path(__file__).parent.parent
+    main_gui = root / "gui" / "gui_server.py"
+    if not main_gui.exists():
+        return
+    content = main_gui.read_text()
+    # Must import the safety primitives from handlers.shared
+    assert "READ_ONLY_MODE" in content, (
+        "gui/gui_server.py must reference READ_ONLY_MODE — without it, the "
+        "GUI exposes every write tool even when MCP server.py would not"
+    )
+    assert "DISABLED_TOOLS" in content
+    assert "require_confirmation" in content
