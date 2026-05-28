@@ -89,6 +89,10 @@ ignore = [
     "SIM102",  # Nested if (intentional readability choice in filter function)
     "SIM117",  # Nested with (intentional: async context manager nesting)
     "RUF022",  # __all__ is not sorted
+    "UP038",   # Deprecated in ruff 0.10, removed in 0.13. The tuple form
+               # isinstance(x, (A, B)) is actually ~2x faster than X | Y on
+               # CPython 3.10-3.12, so the tuple form is preferred. Pinned
+               # ruff 0.12.5 still emits it; explicit ignore is the fix.
 ]
 fixable = ["ALL"]
 unfixable = []
