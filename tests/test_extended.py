@@ -24,6 +24,7 @@ def _fresh_extended():
     for m in ("handlers.shared", "handlers.extended", "handlers"):
         sys.modules.pop(m, None)
     import handlers.extended as e
+
     return e
 
 
@@ -46,9 +47,13 @@ def test_transaction_rejects_empty_operations():
 
 def test_transaction_rejects_unknown_op():
     e = _fresh_extended()
-    result = e._transaction({"operations": [
-        {"op": "merge", "key": "doc1", "document": {}},
-    ]})
+    result = e._transaction(
+        {
+            "operations": [
+                {"op": "merge", "key": "doc1", "document": {}},
+            ]
+        }
+    )
     payload = json.loads(result[0].text)
     assert "unsupported op" in payload["error"]
     assert "merge" in payload["error"]
@@ -56,9 +61,13 @@ def test_transaction_rejects_unknown_op():
 
 def test_transaction_rejects_missing_key():
     e = _fresh_extended()
-    result = e._transaction({"operations": [
-        {"op": "upsert", "document": {"x": 1}},
-    ]})
+    result = e._transaction(
+        {
+            "operations": [
+                {"op": "upsert", "document": {"x": 1}},
+            ]
+        }
+    )
     payload = json.loads(result[0].text)
     assert "key" in payload["error"]
 
@@ -66,9 +75,13 @@ def test_transaction_rejects_missing_key():
 def test_transaction_rejects_missing_document_for_write():
     e = _fresh_extended()
     for kind in ("insert", "upsert", "replace"):
-        result = e._transaction({"operations": [
-            {"op": kind, "key": "doc1"},
-        ]})
+        result = e._transaction(
+            {
+                "operations": [
+                    {"op": kind, "key": "doc1"},
+                ]
+            }
+        )
         payload = json.loads(result[0].text)
         assert "document" in payload["error"], f"{kind} did not require document"
 
@@ -91,10 +104,12 @@ def test_transaction_rejects_unknown_durability():
     e = _fresh_extended()
     with patch("handlers.extended.get_sdk_connection") as mock_conn:
         mock_conn.return_value = (MagicMock(), MagicMock(), MagicMock())
-        result = e._transaction({
-            "operations": [{"op": "upsert", "key": "x", "document": {}}],
-            "durability": "MAJORITY_PLUS",
-        })
+        result = e._transaction(
+            {
+                "operations": [{"op": "upsert", "key": "x", "document": {}}],
+                "durability": "MAJORITY_PLUS",
+            }
+        )
     payload = json.loads(result[0].text)
     assert "durability" in payload["error"]
 
@@ -255,10 +270,13 @@ def test_backup_restore_posts_target():
         return {}
 
     with patch("handlers.extended.admin_request", side_effect=fake_request):
-        e.handle("admin_backup_restore_run", {
-            "repository_id": "daily",
-            "target": {"filter_keys": ["user::*"]},
-        })
+        e.handle(
+            "admin_backup_restore_run",
+            {
+                "repository_id": "daily",
+                "target": {"filter_keys": ["user::*"]},
+            },
+        )
 
     assert captured["method"] == "POST"
     assert "/restore" in captured["path"]
@@ -291,8 +309,11 @@ def test_analytics_marked_destructive_but_not_truly_blocked():
 
 def test_backup_reads_are_read_only():
     e = _fresh_extended()
-    for name in ("admin_backup_repository_list", "admin_backup_repository_get",
-                 "admin_backup_list"):
+    for name in (
+        "admin_backup_repository_list",
+        "admin_backup_repository_get",
+        "admin_backup_list",
+    ):
         t = next(tt for tt in e.TOOLS if tt.name == name)
         assert t.annotations.readOnlyHint is True, f"{name} should be read-only"
 

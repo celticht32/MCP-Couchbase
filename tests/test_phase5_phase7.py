@@ -19,8 +19,7 @@ def _fresh(modname: str):
     """Reload a handlers.* module with a clean env."""
     os.environ.setdefault("CB_USERNAME", "u")
     os.environ.setdefault("CB_PASSWORD", "p")
-    for m in ("handlers.shared", "handlers.eight_x", f"handlers.{modname}",
-              "handlers"):
+    for m in ("handlers.shared", "handlers.eight_x", f"handlers.{modname}", "handlers"):
         sys.modules.pop(m, None)
     return __import__(f"handlers.{modname}", fromlist=[modname])
 
@@ -45,9 +44,7 @@ def test_synonyms_validate_accepts_valid_doc():
 
 def test_synonyms_validate_rejects_empty_input():
     s = _fresh("synonyms")
-    result = s._validate_synonym_doc(
-        {"input": [], "synonyms": ["x"]}, "test"
-    )
+    result = s._validate_synonym_doc({"input": [], "synonyms": ["x"]}, "test")
     assert result is not None
     payload = json.loads(result[0].text)
     assert "input" in payload["error"]
@@ -55,9 +52,7 @@ def test_synonyms_validate_rejects_empty_input():
 
 def test_synonyms_validate_rejects_non_string_in_input():
     s = _fresh("synonyms")
-    result = s._validate_synonym_doc(
-        {"input": ["js", 42], "synonyms": ["js"]}, "test"
-    )
+    result = s._validate_synonym_doc({"input": ["js", 42], "synonyms": ["js"]}, "test")
     assert result is not None
     payload = json.loads(result[0].text)
     assert "strings" in payload["error"]
@@ -65,9 +60,7 @@ def test_synonyms_validate_rejects_non_string_in_input():
 
 def test_synonyms_validate_rejects_missing_synonyms_field():
     s = _fresh("synonyms")
-    result = s._validate_synonym_doc(
-        {"input": ["js"]}, "test"
-    )
+    result = s._validate_synonym_doc({"input": ["js"]}, "test")
     assert result is not None
 
 
@@ -83,10 +76,15 @@ def test_synonyms_upsert_gates_on_8x():
     """When is_8x() is False, the tool should error before touching the SDK."""
     s = _fresh("synonyms")
     with patch("handlers.eight_x.is_8x", return_value=False):
-        result = s.handle("cb_fts_synonym_upsert", {
-            "bucket_name": "b", "key": "k",
-            "input": ["js"], "synonyms": ["js", "javascript"],
-        })
+        result = s.handle(
+            "cb_fts_synonym_upsert",
+            {
+                "bucket_name": "b",
+                "key": "k",
+                "input": ["js"],
+                "synonyms": ["js", "javascript"],
+            },
+        )
     payload = json.loads(result[0].text)
     assert "8.0" in payload["error"]
 
@@ -100,17 +98,24 @@ def test_synonyms_upsert_passes_through_to_sdk_when_8x():
     mock_cluster = MagicMock()
     mock_cluster.bucket.return_value = mock_bucket
 
-    with patch("handlers.eight_x.is_8x", return_value=True), \
-         patch("handlers.synonyms.get_sdk_connection",
-               return_value=(mock_cluster, None, None)):
-        result = s.handle("cb_fts_synonym_upsert", {
-            "bucket_name": "myb",
-            "scope_name": "myscope",
-            "collection_name": "synonyms",
-            "key": "k1",
-            "input": ["js", "javascript"],
-            "synonyms": ["js", "javascript", "ecmascript"],
-        })
+    with (
+        patch("handlers.eight_x.is_8x", return_value=True),
+        patch(
+            "handlers.synonyms.get_sdk_connection",
+            return_value=(mock_cluster, None, None),
+        ),
+    ):
+        result = s.handle(
+            "cb_fts_synonym_upsert",
+            {
+                "bucket_name": "myb",
+                "scope_name": "myscope",
+                "collection_name": "synonyms",
+                "key": "k1",
+                "input": ["js", "javascript"],
+                "synonyms": ["js", "javascript", "ecmascript"],
+            },
+        )
 
     mock_cluster.bucket.assert_called_once_with("myb")
     mock_bucket.scope.assert_called_once_with("myscope")
@@ -172,11 +177,14 @@ def test_encryption_set_filters_confirm():
         return {"status": "ok"}
 
     with patch("handlers.encryption.admin_request", side_effect=fake):
-        e.handle("admin_encryption_set", {
-            "encryptionEnabled": True,
-            "rotateInterval": 86400,
-            "confirm": True,
-        })
+        e.handle(
+            "admin_encryption_set",
+            {
+                "encryptionEnabled": True,
+                "rotateInterval": 86400,
+                "confirm": True,
+            },
+        )
 
     assert "confirm" not in captured["data"]
     assert captured["data"]["encryptionEnabled"] == "true"
@@ -193,11 +201,14 @@ def test_encryption_set_passes_additional_fields():
         return {"status": "ok"}
 
     with patch("handlers.encryption.admin_request", side_effect=fake):
-        e.handle("admin_encryption_set", {
-            "encryptionEnabled": True,
-            "additional_fields": {"experimental_flag": "x", "other": 42},
-            "confirm": True,
-        })
+        e.handle(
+            "admin_encryption_set",
+            {
+                "encryptionEnabled": True,
+                "additional_fields": {"experimental_flag": "x", "other": 42},
+                "confirm": True,
+            },
+        )
 
     assert captured["data"]["experimental_flag"] == "x"
     assert captured["data"]["other"] == "42"
@@ -222,7 +233,9 @@ def test_encryption_404_includes_path_hint():
     e = _fresh("encryption")
 
     def fake(method, path, **kwargs):
-        raise RuntimeError("HTTP 404 on GET /settings/security/encryptionAtRest: Not Found")
+        raise RuntimeError(
+            "HTTP 404 on GET /settings/security/encryptionAtRest: Not Found"
+        )
 
     with patch("handlers.encryption.admin_request", side_effect=fake):
         result = e.handle("admin_encryption_get", {})
@@ -256,7 +269,9 @@ def test_capella_all_read_only():
     c = _fresh("capella")
     for t in c.TOOLS:
         assert t.annotations.readOnlyHint is True, f"{t.name} should be read-only"
-        assert t.annotations.destructiveHint is False, f"{t.name} should not be destructive"
+        assert t.annotations.destructiveHint is False, (
+            f"{t.name} should not be destructive"
+        )
 
 
 def test_capella_requires_api_key_secret():
@@ -310,8 +325,12 @@ def test_capella_request_uses_bearer_token():
     class FakeResp:
         def read(self):
             return b'{"data": []}'
-        def __enter__(self): return self
-        def __exit__(self, *a): pass
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            pass
 
     def fake_urlopen(req, **kwargs):
         captured["url"] = req.full_url
@@ -322,9 +341,13 @@ def test_capella_request_uses_bearer_token():
         c._capella_request("GET", "/v4/organizations")
 
     # Header name is normalized (capitalized first letter) by urllib
-    auth_header = captured["headers"].get("Authorization") or captured["headers"].get("authorization")
+    auth_header = captured["headers"].get("Authorization") or captured["headers"].get(
+        "authorization"
+    )
     assert auth_header == "Bearer my-secret-key"
-    assert captured["url"].startswith("https://cloudapi.cloud.couchbase.com/v4/organizations")
+    assert captured["url"].startswith(
+        "https://cloudapi.cloud.couchbase.com/v4/organizations"
+    )
 
 
 def test_capella_request_retries_on_503():
@@ -337,8 +360,12 @@ def test_capella_request_retries_on_503():
     class FakeResp:
         def read(self):
             return b'{"ok": true}'
-        def __enter__(self): return self
-        def __exit__(self, *a): pass
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            pass
 
     calls = []
 
@@ -348,8 +375,7 @@ def test_capella_request_retries_on_503():
             raise HTTPError("http://x", 503, "busy", {}, BytesIO(b""))
         return FakeResp()
 
-    with patch("urllib.request.urlopen", side_effect=fake_urlopen), \
-         patch("time.sleep"):
+    with patch("urllib.request.urlopen", side_effect=fake_urlopen), patch("time.sleep"):
         result = c._capella_request("GET", "/v4/organizations")
 
     assert result == {"ok": True}
@@ -386,10 +412,13 @@ def test_capella_clusters_list_constructs_correct_path():
         return {"data": []}
 
     with patch("handlers.capella._capella_request", side_effect=fake):
-        c.handle("capella_clusters_list", {
-            "organization_id": "org-uuid",
-            "project_id": "proj-uuid",
-        })
+        c.handle(
+            "capella_clusters_list",
+            {
+                "organization_id": "org-uuid",
+                "project_id": "proj-uuid",
+            },
+        )
 
     assert captured["path"] == "/v4/organizations/org-uuid/projects/proj-uuid/clusters"
 
@@ -404,9 +433,14 @@ def test_capella_cluster_get_with_full_hierarchy():
         return {}
 
     with patch("handlers.capella._capella_request", side_effect=fake):
-        c.handle("capella_cluster_get", {
-            "organization_id": "o", "project_id": "p", "cluster_id": "c",
-        })
+        c.handle(
+            "capella_cluster_get",
+            {
+                "organization_id": "o",
+                "project_id": "p",
+                "cluster_id": "c",
+            },
+        )
 
     assert captured["path"] == "/v4/organizations/o/projects/p/clusters/c"
 
