@@ -289,9 +289,14 @@ async def _main_http() -> None:
 
         async def run_server():
             async with transport.connect() as (rs, ws):
-                async with asyncio.TaskGroup() as tg:
-                    tg.create_task(server.serve())
-                    tg.create_task(app.run(rs, ws, app.create_initialization_options()))
+                # asyncio.TaskGroup is 3.11+. Use gather for 3.10 compatibility.
+                # If one task fails, the other is cancelled (return_exceptions=False)
+                # and the first exception propagates — same effective behavior as
+                # TaskGroup for our two-task case.
+                await asyncio.gather(
+                    server.serve(),
+                    app.run(rs, ws, app.create_initialization_options()),
+                )
 
         await run_server()
     except ImportError as exc:

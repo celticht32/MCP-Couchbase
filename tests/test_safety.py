@@ -1339,8 +1339,16 @@ def test_server_async_main_is_async(clean_env):
 def test_pyproject_entry_point_points_at_sync_main():
     """pyproject.toml entry point must point at server:main (the sync wrapper)."""
     import pathlib
+    import sys
 
-    import tomllib
+    # tomllib is stdlib on 3.11+; fall back to tomli on 3.10
+    if sys.version_info >= (3, 11):
+        import tomllib
+    else:
+        try:
+            import tomli as tomllib
+        except ImportError:
+            pytest.skip("tomli not installed (only needed on Python 3.10)")
 
     root = pathlib.Path(__file__).parent.parent
     with open(root / "pyproject.toml", "rb") as f:
@@ -1684,3 +1692,58 @@ def test_github_templates_present():
         ".github/PULL_REQUEST_TEMPLATE.md",
     ):
         assert (root / path).exists(), f"{path} missing"
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Python version-compatibility regression guards
+# ═══════════════════════════════════════════════════════════════════════════════
+
+
+@pytest.mark.unit
+def test_no_python_311_only_stdlib_in_runtime_code():
+    """Runtime code (server.py, handlers/) must not use 3.11+-only stdlib
+    constructs unguarded, since pyproject.toml declares requires-python>=3.10.
+
+    Things that are 3.11+:
+      - asyncio.TaskGroup
+      - ExceptionGroup / BaseExceptionGroup
+      - tomllib (stdlib only on 3.11+)
+      - typing.Self
+      - except* syntax (3.11+)
+
+    Allowed:
+      - These constructs *inside* version-guarded if blocks
+      - Use in tests/ where the test itself can sys.version_info-guard
+    """
+    import pathlib
+    import re
+
+    root = pathlib.Path(__file__).parent.parent
+    runtime_paths = [root / "server.py", *list((root / "handlers").glob("*.py"))]
+
+    forbidden = [
+        (r"\basyncio\.TaskGroup\b", "asyncio.TaskGroup (use asyncio.gather on 3.10)"),
+        (r"\bExceptionGroup\b", "ExceptionGroup"),
+        (r"\bBaseExceptionGroup\b", "BaseExceptionGroup"),
+        (r"^\s*import tomllib", "tomllib (stdlib only on 3.11+)"),
+        (r"^\s*from tomllib", "tomllib (stdlib only on 3.11+)"),
+        (r"\bexcept\*", "except* (3.11+ syntax)"),
+        # typing.Self is 3.11+; allow `Self` from typing_extensions
+        (r"from typing import.*\bSelf\b", "typing.Self (use typing_extensions.Self)"),
+    ]
+
+    findings = []
+    for path in runtime_paths:
+        for i, line in enumerate(path.read_text().splitlines(), 1):
+            # Skip comments — that's where we document the alternative
+            stripped = line.lstrip()
+            if stripped.startswith("#"):
+                continue
+            for pattern, desc in forbidden:
+                if re.search(pattern, line):
+                    findings.append(f"  {path.name}:{i}: {desc}")
+
+    assert not findings, (
+        "Found Python 3.11+ stdlib usage in runtime code without a version guard:\n"
+        + "\n".join(findings)
+    )

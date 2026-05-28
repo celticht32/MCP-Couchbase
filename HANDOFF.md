@@ -38,7 +38,7 @@ handlers/
   mcp_status.py             # Server introspection                      (3)
 tests/
   conftest.py               # Shared fixtures, integration skip markers
-  test_safety.py            # 134 unit tests, no cluster required
+  test_safety.py            # 135 unit tests, no cluster required
 skills/
   couchbase-sqlpp-tuning/   # LLM skill — diagnose and fix slow SQL++ queries
     SKILL.md                # Router with core principles
@@ -96,7 +96,7 @@ The merge uses the **handler module pattern** rather than `@mcp.tool()` decorato
 
 The PR proposal in the GitHub issue formalizes this pattern and asks for maintainer alignment before opening the PR.
 
-## Bug history (21 bugs fixed across iterative scan passes)
+## Bug history (23 bugs fixed across iterative scan passes)
 
 1. `security.py` `admin_user_change_password` — was using `PUT` with only password, wiped user roles. Fixed to use `POST /controller/changePassword`.
 2. `collections.py` `maxTTL` — was string, must be int.
@@ -116,6 +116,8 @@ The PR proposal in the GitHub issue formalizes this pattern and asks for maintai
 19. `Dockerfile` `HEALTHCHECK` — always probed HTTP even in stdio mode, marking the container unhealthy forever. Now exits 0 (skip) unless `CB_MCP_TRANSPORT=http`.
 20. `data.py` `_kv_options` — `raise ValueError(...)` without `from exc` (B904), masking the original `TypeError` / `ValueError`. Fixed with `from exc`.
 21. `.gitignore` — no patterns for `*.pem` / `*.key` / `*.crt` / `*.p12`. Easy to accidentally commit a Couchbase TLS cert. Added secret-material patterns plus `secrets/`, `credentials.json`.
+22. `server.py` `_main_http` — used `asyncio.TaskGroup` (3.11+) but `pyproject.toml` declares `requires-python>=3.10`. CI failed on the Python 3.10 matrix job. Replaced with `asyncio.gather` for the two-task case (equivalent semantics: first failure cancels the other and propagates).
+23. `tests/test_safety.py` `test_pyproject_entry_point_points_at_sync_main` — used `import tomllib` (stdlib only on 3.11+). Same CI failure. Added a 3.10-safe fallback to `tomli` (added to `dev` extras with a `python_version<'3.11'` marker) and a new regression test `test_no_python_311_only_stdlib_in_runtime_code` that scans all runtime code for `asyncio.TaskGroup`, `ExceptionGroup`, `tomllib` imports, `except*`, and `typing.Self` — so this class of CI failure can't recur silently.
 
 ## Shared helpers introduced
 
@@ -130,7 +132,7 @@ Any new handler accepting user-supplied identifiers in URL paths or boolean form
 ## Tests
 
 ```bash
-# Unit tests only (no cluster) — 134 tests, all passing
+# Unit tests only (no cluster) — 135 tests, all passing
 pytest tests/ -m unit -v
 
 # Integration tests (requires live cluster)
@@ -160,7 +162,7 @@ The GitHub issue draft (in the prior conversation summary) describes scope, arch
 # 1. Lint and format clean
 ruff check . && ruff format --check .
 
-# 2. All unit tests pass (134 tests, no cluster needed)
+# 2. All unit tests pass (135 tests, no cluster needed)
 pytest tests/ -m unit
 
 # 3. Server starts (kills immediately — just to verify imports)
