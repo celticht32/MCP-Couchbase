@@ -374,7 +374,6 @@ const API = window.location.origin; // same origin as Flask
 //   - is a no-op passthrough when OAuth is disabled (oauth_enabled: false)
 
 let _authState = null; // cached result of /auth/status
-let _ccToken   = null; // client-credentials token { access_token, expires_at }
 
 async function loadAuthState() {
   try {
@@ -386,42 +385,20 @@ async function loadAuthState() {
   return _authState;
 }
 
-async function getCCToken() {
-  const now = Date.now() / 1000;
-  if (_ccToken && _ccToken.expires_at > now + 60) return _ccToken.access_token;
-  // Try to obtain a new CC token (only works when server has CC creds configured)
-  try {
-    const r = await fetch(`${API}/auth/token`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ grant_type: "client_credentials" }),
-    });
-    if (!r.ok) return null;
-    const data = await r.json();
-    _ccToken = { access_token: data.access_token, expires_at: now + (data.expires_in || 3600) };
-    return _ccToken.access_token;
-  } catch { return null; }
-}
-
 async function apiFetch(url, opts = {}) {
   const state = _authState || await loadAuthState();
-  if (!state.oauth_enabled) {
-    // No auth — plain fetch with cookies for session
-    return fetch(url, { ...opts, credentials: "include" });
-  }
 
-  // Try Bearer token first (CC flow preferred for API calls)
-  let token = await getCCToken();
-  const headers = { ...(opts.headers || {}) };
-  if (token) {
-    headers["Authorization"] = `Bearer ${token}`;
-  }
+  // The browser GUI always authenticates via its session cookie (set during
+  // the Authorization Code login). The Client Credentials flow (/auth/token)
+  // is for external machine-to-machine callers hitting /api/* directly — it is
+  // deliberately NOT used here, because minting a service-account token would
+  // run the user's requests under the service identity instead of their own.
+  const resp = await fetch(url, { ...opts, credentials: "include" });
 
-  const resp = await fetch(url, { ...opts, headers, credentials: "include" });
-  if (resp.status === 401) {
-    // Session expired or no CC token — redirect to Authorization Code login
-    window.location.href = `${API}/auth/login?next=${encodeURIComponent(window.location.pathname)}`;
-    return resp;
+  if (state.oauth_enabled && resp.status === 401) {
+    // Session missing or expired — send the user through Authorization Code login.
+    window.location.href =
+      `${API}/auth/login?next=${encodeURIComponent(window.location.pathname)}`;
   }
   return resp;
 }

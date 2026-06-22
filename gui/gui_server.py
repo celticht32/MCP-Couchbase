@@ -194,21 +194,29 @@ def _get_session_claims() -> dict[str, Any] | None:
     expires_at = sess.get("expires_at", 0)
     if time.time() >= expires_at - 60:  # 60 s buffer
         refresh_token = sess.get("refresh_token")
-        if refresh_token:
-            try:
-                tokens      = _oidc.refresh_access_token(refresh_token)
-                new_expires = time.time() + tokens.get("expires_in", 3600)
-                _session.update_session(cookie, {
-                    "access_token":  tokens["access_token"],
-                    "expires_at":    new_expires,
-                    "refresh_token": tokens.get("refresh_token", refresh_token),
-                })
-                sess["access_token"] = tokens["access_token"]
-                sess["expires_at"]   = new_expires
-            except Exception:
-                # Refresh failed — session is dead
-                _session.delete_session(cookie)
-                return None
+        if not refresh_token:
+            # No way to refresh an expired session — treat as logged out
+            _session.delete_session(cookie)
+            return None
+        try:
+            tokens      = _oidc.refresh_access_token(refresh_token)
+            new_expires = time.time() + tokens.get("expires_in", 3600)
+            # Re-validate the freshly issued token so stored claims stay
+            # in sync with the new token (expiry, roles, etc.).
+            new_token = tokens.get("access_token") or tokens.get("id_token", "")
+            new_claims = _oidc.validate_token(new_token)
+            _session.update_session(cookie, {
+                "access_token":  tokens.get("access_token", ""),
+                "id_token":      tokens.get("id_token", sess.get("id_token", "")),
+                "expires_at":    new_expires,
+                "refresh_token": tokens.get("refresh_token", refresh_token),
+                "claims":        new_claims,
+            })
+            return new_claims
+        except Exception:
+            # Refresh or re-validation failed — session is dead
+            _session.delete_session(cookie)
+            return None
 
     return sess.get("claims")
 
@@ -372,6 +380,9 @@ def auth_callback():
     state = request.args.get("state", "")
     code  = request.args.get("code", "")
 
+    if not code:
+        return jsonify({"error": "Missing authorization code in callback."}), 400
+
     pkce = _pkce_store.pop(state, None)
     if pkce is None:
         return jsonify({"error": "Invalid or expired state parameter. Please try logging in again."}), 400
@@ -383,6 +394,8 @@ def auth_callback():
 
     # Validate the access token (or id_token if no access token)
     token_to_validate = tokens.get("access_token") or tokens.get("id_token", "")
+    if not token_to_validate:
+        return jsonify({"error": "IdP returned no access or ID token."}), 502
     try:
         claims = _oidc.validate_token(token_to_validate)
     except Exception as exc:

@@ -57,6 +57,7 @@ def _env_required(key: str) -> str:
 # ── OIDC discovery (cached) ───────────────────────────────────────────────────
 
 _discovery_cache: dict[str, Any] = {}
+_jwks_clients: dict[str, Any] = {}  # jwks_uri -> PyJWKClient (cached per URI)
 _JWKS_TTL = 3600  # PyJWKClient cache lifespan in seconds
 
 
@@ -209,9 +210,13 @@ def validate_token(token: str) -> dict[str, Any]:
     audience   = _env("OAUTH_AUDIENCE") or None
 
     # Resolve the JWKS URI once (from explicit env var or discovery), then
-    # use PyJWKClient to pick the right key for this token's `kid` header.
-    jwks_uri    = _env("OAUTH_JWKS_URI") or _discover()["jwks_uri"]
-    jwks_client = jwt.PyJWKClient(jwks_uri, cache_jwk_set=True, lifespan=_JWKS_TTL)
+    # use a module-cached PyJWKClient so the fetched key set persists between
+    # calls (a fresh client per call would refetch JWKS every time).
+    jwks_uri = _env("OAUTH_JWKS_URI") or _discover()["jwks_uri"]
+    jwks_client = _jwks_clients.get(jwks_uri)
+    if jwks_client is None:
+        jwks_client = jwt.PyJWKClient(jwks_uri, cache_jwk_set=True, lifespan=_JWKS_TTL)
+        _jwks_clients[jwks_uri] = jwks_client
     signing_key = jwks_client.get_signing_key_from_jwt(token)
 
     decode_opts: dict[str, Any] = {}

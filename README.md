@@ -502,7 +502,7 @@ Two Flask backends ship with the project for users who want a browser console ra
 | `gui/gui_server.py` | 5173 | Main cluster console — 151 tools (everything except Capella v4) |
 | `gui-capella/gui_server.py` | 5174 | Capella v4 control-plane console — 16 read-only tools |
 
-Run either with `python gui/gui_server.py` or `python gui-capella/gui_server.py`. Both serve a React SPA from `static/` (front-end not in the repo).
+Run either with `python gui/gui_server.py` or `python gui-capella/gui_server.py`. Both serve a self-contained React SPA from `static/index.html` (no build step — React loads from CDN).
 
 **Security defaults — important:**
 
@@ -512,6 +512,10 @@ Run either with `python gui/gui_server.py` or `python gui-capella/gui_server.py`
 - `/api/config` POST writes only to an allow-list of `CB_*` / `CAPELLA_*` env vars; arbitrary keys are rejected.
 - `/api/config` GET redacts `CB_PASSWORD` and `CAPELLA_API_KEY_SECRET` to `********`.
 - `/api/call` enforces the same gates as the MCP server: `CB_MCP_READ_ONLY_MODE`, `CB_MCP_DISABLED_TOOLS`, and the `confirm: true` argument for destructive tools.
+
+**Optional OAuth 2.0 / OIDC login:**
+
+Authentication is off by default. Set `OAUTH_ENABLED=true` (plus the `OAUTH_*` variables in `.env.example`) to require login against any OIDC provider (Okta, Microsoft Entra ID, Keycloak, Auth0, etc.). Browser users authenticate via Authorization Code + PKCE with a server-side session and a signed `HttpOnly` cookie; machine-to-machine callers can use Client Credentials Bearer tokens. When enabled, all `/api/*` routes require authentication. Requires `pip install "PyJWT[crypto]" cryptography requests`. See `gui/README.md` for details.
 
 ---
 
