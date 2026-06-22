@@ -8,7 +8,7 @@ Five composable skills, designed to work together across the application lifecyc
 | **`couchbase-sizing`** | Numerical capacity planning | "how much RAM", "how many nodes", "Capella tier", "scale up vs out" |
 | **`couchbase-migration-execution`** | Moving data INTO Couchbase from another system | "migrate from MongoDB / Postgres / DynamoDB", "dual-write", "CDC", "cbimport", "cutover", "rollback" |
 | **`couchbase-app-integration`** | Writing application code that talks to Couchbase | "Python/Java/Node SDK", "connection pool", "retry strategy", "durability", "bulk insert" |
-| **`couchbase-mcp`** | Operating an existing cluster via celticht32/MCP-Couchbase (164 tools) | "list buckets", "create user", "rebalance", "XDCR", "explain query", "monitoring", "Prometheus" |
+| **`couchbase-mcp`** | Operating an existing cluster via celticht32/MCP-Couchbase (167 tools) | "list buckets", "create user", "rebalance", "XDCR", "explain query", "monitoring", "Prometheus" |
 
 They cover five conversation phases — design → plan capacity → move data in → write app code → operate. Each triggers on **different vocabulary** so they don't conflict; they explicitly hand off to each other by name. Install all five for full coverage; install only the ones you need.
 

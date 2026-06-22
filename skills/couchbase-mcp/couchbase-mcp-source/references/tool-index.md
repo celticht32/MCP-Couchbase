@@ -1,8 +1,8 @@
 # Tool index — alphabetical reference
 
-A flat listing of all 164 tools across both servers, grouped by family for fast lookup. When you know what you want to do and just need the exact tool name, this is the page.
+A flat listing of all 167 tools across both servers, grouped by family for fast lookup. When you know what you want to do and just need the exact tool name, this is the page.
 
-## Cluster server (148 tools) — `cb_*` and `admin_*`
+## Cluster server (151 tools) — `cb_*` and `admin_*`
 
 ### `cb_*` — data plane (43)
 

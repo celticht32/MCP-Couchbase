@@ -1,0 +1,287 @@
+diff --git a/README.md b/README.md
+index 39df0ff..d406695 100644
+--- a/README.md
++++ b/README.md
+@@ -502,7 +502,7 @@ Two Flask backends ship with the project for users who want a browser console ra
+ | `gui/gui_server.py` | 5173 | Main cluster console — 151 tools (everything except Capella v4) |
+ | `gui-capella/gui_server.py` | 5174 | Capella v4 control-plane console — 16 read-only tools |
+ 
+-Run either with `python gui/gui_server.py` or `python gui-capella/gui_server.py`. Both serve a React SPA from `static/` (front-end not in the repo).
++Run either with `python gui/gui_server.py` or `python gui-capella/gui_server.py`. Both serve a self-contained React SPA from `static/index.html` (no build step — React loads from CDN).
+ 
+ **Security defaults — important:**
+ 
+@@ -513,6 +513,10 @@ Run either with `python gui/gui_server.py` or `python gui-capella/gui_server.py`
+ - `/api/config` GET redacts `CB_PASSWORD` and `CAPELLA_API_KEY_SECRET` to `********`.
+ - `/api/call` enforces the same gates as the MCP server: `CB_MCP_READ_ONLY_MODE`, `CB_MCP_DISABLED_TOOLS`, and the `confirm: true` argument for destructive tools.
+ 
++**Optional OAuth 2.0 / OIDC login:**
++
++Authentication is off by default. Set `OAUTH_ENABLED=true` (plus the `OAUTH_*` variables in `.env.example`) to require login against any OIDC provider (Okta, Microsoft Entra ID, Keycloak, Auth0, etc.). Browser users authenticate via Authorization Code + PKCE with a server-side session and a signed `HttpOnly` cookie; machine-to-machine callers can use Client Credentials Bearer tokens. When enabled, all `/api/*` routes require authentication. Requires `pip install "PyJWT[crypto]" cryptography requests`. See `gui/README.md` for details.
++
+ ---
+ 
+ ## Support
+diff --git a/auth/oidc.py b/auth/oidc.py
+index 6bee836..53fd141 100644
+--- a/auth/oidc.py
++++ b/auth/oidc.py
+@@ -57,6 +57,7 @@ def _env_required(key: str) -> str:
+ # ── OIDC discovery (cached) ───────────────────────────────────────────────────
+ 
+ _discovery_cache: dict[str, Any] = {}
++_jwks_clients: dict[str, Any] = {}  # jwks_uri -> PyJWKClient (cached per URI)
+ _JWKS_TTL = 3600  # PyJWKClient cache lifespan in seconds
+ 
+ 
+@@ -209,9 +210,13 @@ def validate_token(token: str) -> dict[str, Any]:
+     audience   = _env("OAUTH_AUDIENCE") or None
+ 
+     # Resolve the JWKS URI once (from explicit env var or discovery), then
+-    # use PyJWKClient to pick the right key for this token's `kid` header.
+-    jwks_uri    = _env("OAUTH_JWKS_URI") or _discover()["jwks_uri"]
+-    jwks_client = jwt.PyJWKClient(jwks_uri, cache_jwk_set=True, lifespan=_JWKS_TTL)
++    # use a module-cached PyJWKClient so the fetched key set persists between
++    # calls (a fresh client per call would refetch JWKS every time).
++    jwks_uri = _env("OAUTH_JWKS_URI") or _discover()["jwks_uri"]
++    jwks_client = _jwks_clients.get(jwks_uri)
++    if jwks_client is None:
++        jwks_client = jwt.PyJWKClient(jwks_uri, cache_jwk_set=True, lifespan=_JWKS_TTL)
++        _jwks_clients[jwks_uri] = jwks_client
+     signing_key = jwks_client.get_signing_key_from_jwt(token)
+ 
+     decode_opts: dict[str, Any] = {}
+diff --git a/gui/README.md b/gui/README.md
+index 67692b6..b9458ec 100644
+--- a/gui/README.md
++++ b/gui/README.md
+@@ -1,12 +1,12 @@
+ # Couchbase MCP Console — Main GUI
+ 
+-A web-based interface for the Couchbase MCP Server. Browse and execute all 148 cluster-management tools from your browser.
++A web-based interface for the Couchbase MCP Server. Browse and execute all 151 cluster-management tools from your browser.
+ 
+ > **Capella v4 control-plane tools** (16 read-only tools that talk to `cloudapi.cloud.couchbase.com`) live in a **separate** GUI under `../gui-capella/`. They run on a different port, with different credentials, against a different API surface. See `../gui-capella/README.md`.
+ 
+ ## Features
+ 
+-- 🗂 **Sidebar navigation** — 148 tools organized into 16 categories (Data, Buckets, Collections, Security, Cluster, XDCR, Indexes, FTS Admin, Stats, **Diagnostics**, **Vector Indexes**, **Encryption**, **Transactions**, **Eventing**, **Backup**, **Synonyms**)
++- 🗂 **Sidebar navigation** — 151 tools organized into 16 categories (Data, Buckets, Collections, Security, Cluster, XDCR, Indexes, FTS Admin, Stats, **Diagnostics**, **Vector Indexes**, **Encryption**, **Transactions**, **Eventing**, **Backup**, **Synonyms**)
+ - 🔍 **Live search** — filter tools instantly by name or description
+ - 📋 **Auto-generated forms** — input fields are generated from each tool's JSON schema, with type-aware widgets
+ - ✅ **Syntax-highlighted JSON output** — color-coded responses with table view for arrays
+@@ -20,6 +20,9 @@ A web-based interface for the Couchbase MCP Server. Browse and execute all 148 c
+ # From the couchbase-mcp-server directory:
+ pip install flask flask-cors
+ 
++# For OAuth login (optional), also install:
++pip install "PyJWT[crypto]" cryptography requests
++
+ # Set your connection details (optional — also configurable in the GUI):
+ export CB_CONNECTION_STRING=couchbase://localhost
+ export CB_USERNAME=Administrator
+@@ -45,12 +48,23 @@ gui/
+ 
+ | Method | Path         | Description |
+ |--------|-------------|-------------|
+-| GET    | `/api/tools` | List all 148 tools with their schemas |
++| GET    | `/api/tools` | List all 151 tools with their schemas |
+ | POST   | `/api/call`  | Execute a tool: `{ "tool": "cb_ping", "arguments": {} }` |
+ | GET    | `/api/config`| Get current connection environment variables |
+ | POST   | `/api/config`| Update connection variables and reset SDK connection |
+ | GET    | `/`          | Serve the React SPA |
+ 
++When `OAUTH_ENABLED=true`, these additional routes are active (always public — no auth required to reach them):
++
++| Method | Path             | Description |
++|--------|------------------|-------------|
++| GET    | `/auth/status`   | Whether OAuth is enabled and the caller is authenticated |
++| GET    | `/auth/login`    | Begin Authorization Code + PKCE login (`?next=<relative-path>`) |
++| GET    | `/auth/callback` | IdP redirect target — exchanges the code, creates the session |
++| GET    | `/auth/logout`   | Clear the session (and trigger IdP logout if supported) |
++| POST   | `/auth/token`    | Client Credentials token for M2M callers |
++| GET    | `/auth/me`       | Identity of the current user |
++
+ ## Configuration
+ 
+ | Variable | Default | Description |
+@@ -64,17 +78,39 @@ gui/
+ | `CB_MGMT_PORT` | `8091` | |
+ | `GUI_PORT` | `5173` | Port the Flask server listens on |
+ 
+-## Safety note
++## Safety
++
++The GUI **enforces the same safety gates as the MCP server**:
++
++- **Read-only mode** (`CB_MCP_READ_ONLY_MODE=true`) — write tools are filtered out of `/api/tools` and rejected by `/api/call` (except `cb_query` / `cb_analytics_query`, which carry their own read-only handling).
++- **Disabled tools** (`CB_MCP_DISABLED_TOOLS`) — listed tools are hidden and refused.
++- **Confirmation gate** — destructive tools (and any in `CB_MCP_CONFIRMATION_REQUIRED_TOOLS`) require an explicit `confirm: true` argument; the API returns `403` otherwise.
++
++The frontend marks read-only and destructive tools so you can see at a glance which operations mutate state.
+ 
+-**This GUI does not enforce read-only mode or the confirmation gate.** The MCP server's `server.py` enforces both (`CB_MCP_READ_ONLY_MODE` filters destructive tools out of the tool list; the confirmation gate requires `confirm:true` for destructive operations). The GUI calls the handler modules directly, bypassing those gates — it is a **power-user tool**.
++## Authentication (OAuth 2.0 / OIDC)
+ 
+-If you want safety in the GUI, the addition is small but not done in this build:
+-- Filter `ALL_TOOLS` against `READ_ONLY_MODE` and the destructive annotation
+-- Require an explicit `confirm` arg in the form for destructive tools
++Authentication is **off by default** (`OAUTH_ENABLED=false`) — the GUI is reachable only from localhost with no login, matching the original behaviour.
++
++Set `OAUTH_ENABLED=true` to require login. The GUI then supports:
++
++- **Authorization Code + PKCE** — browser users are redirected to your identity provider (Okta, Microsoft Entra ID, Keycloak, Auth0, etc.), and a signed `HttpOnly` session cookie tracks the session afterward. Tokens are stored server-side; the browser never sees them.
++- **Client Credentials** — external machine-to-machine callers can `POST /auth/token` to obtain a short-lived Bearer token and supply it as `Authorization: Bearer <token>` on `/api/*` requests. (The browser GUI itself authenticates via its session cookie, not this flow.)
++
++When OAuth is enabled, all `/api/*` routes return `401` to unauthenticated requests. See the root `.env.example` for the full list of `OAUTH_*` variables. Minimum required:
++
++```bash
++OAUTH_ENABLED=true
++OAUTH_ISSUER=https://your-idp.example.com
++OAUTH_CLIENT_ID=...
++OAUTH_CLIENT_SECRET=...
++OAUTH_REDIRECT_URI=http://localhost:5173/auth/callback
++OAUTH_SESSION_SECRET=$(python -c "import secrets; print(secrets.token_hex(32))")
++```
+ 
+ ## What's new since the original GUI release
+ 
+-The original GUI covered 105 tools across 9 categories. This update covers **all 148 cluster-management tools** added through Phase 7, organized into **15 categories**:
++The original GUI covered 105 tools across 9 categories. This update covers **all 151 cluster-management tools** added through Phase 7, organized into **16 categories**:
+ 
+ | New category | Phase | Tool examples |
+ |---|---|---|
+diff --git a/gui/gui_server.py b/gui/gui_server.py
+index ef31a00..6eec584 100644
+--- a/gui/gui_server.py
++++ b/gui/gui_server.py
+@@ -194,21 +194,29 @@ def _get_session_claims() -> dict[str, Any] | None:
+     expires_at = sess.get("expires_at", 0)
+     if time.time() >= expires_at - 60:  # 60 s buffer
+         refresh_token = sess.get("refresh_token")
+-        if refresh_token:
+-            try:
+-                tokens      = _oidc.refresh_access_token(refresh_token)
+-                new_expires = time.time() + tokens.get("expires_in", 3600)
+-                _session.update_session(cookie, {
+-                    "access_token":  tokens["access_token"],
+-                    "expires_at":    new_expires,
+-                    "refresh_token": tokens.get("refresh_token", refresh_token),
+-                })
+-                sess["access_token"] = tokens["access_token"]
+-                sess["expires_at"]   = new_expires
+-            except Exception:
+-                # Refresh failed — session is dead
+-                _session.delete_session(cookie)
+-                return None
++        if not refresh_token:
++            # No way to refresh an expired session — treat as logged out
++            _session.delete_session(cookie)
++            return None
++        try:
++            tokens      = _oidc.refresh_access_token(refresh_token)
++            new_expires = time.time() + tokens.get("expires_in", 3600)
++            # Re-validate the freshly issued token so stored claims stay
++            # in sync with the new token (expiry, roles, etc.).
++            new_token = tokens.get("access_token") or tokens.get("id_token", "")
++            new_claims = _oidc.validate_token(new_token)
++            _session.update_session(cookie, {
++                "access_token":  tokens.get("access_token", ""),
++                "id_token":      tokens.get("id_token", sess.get("id_token", "")),
++                "expires_at":    new_expires,
++                "refresh_token": tokens.get("refresh_token", refresh_token),
++                "claims":        new_claims,
++            })
++            return new_claims
++        except Exception:
++            # Refresh or re-validation failed — session is dead
++            _session.delete_session(cookie)
++            return None
+ 
+     return sess.get("claims")
+ 
+@@ -372,6 +380,9 @@ def auth_callback():
+     state = request.args.get("state", "")
+     code  = request.args.get("code", "")
+ 
++    if not code:
++        return jsonify({"error": "Missing authorization code in callback."}), 400
++
+     pkce = _pkce_store.pop(state, None)
+     if pkce is None:
+         return jsonify({"error": "Invalid or expired state parameter. Please try logging in again."}), 400
+@@ -383,6 +394,8 @@ def auth_callback():
+ 
+     # Validate the access token (or id_token if no access token)
+     token_to_validate = tokens.get("access_token") or tokens.get("id_token", "")
++    if not token_to_validate:
++        return jsonify({"error": "IdP returned no access or ID token."}), 502
+     try:
+         claims = _oidc.validate_token(token_to_validate)
+     except Exception as exc:
+diff --git a/gui/static/index.html b/gui/static/index.html
+index 4e35bc3..52e632e 100644
+--- a/gui/static/index.html
++++ b/gui/static/index.html
+@@ -374,7 +374,6 @@ const API = window.location.origin; // same origin as Flask
+ //   - is a no-op passthrough when OAuth is disabled (oauth_enabled: false)
+ 
+ let _authState = null; // cached result of /auth/status
+-let _ccToken   = null; // client-credentials token { access_token, expires_at }
+ 
+ async function loadAuthState() {
+   try {
+@@ -386,42 +385,20 @@ async function loadAuthState() {
+   return _authState;
+ }
+ 
+-async function getCCToken() {
+-  const now = Date.now() / 1000;
+-  if (_ccToken && _ccToken.expires_at > now + 60) return _ccToken.access_token;
+-  // Try to obtain a new CC token (only works when server has CC creds configured)
+-  try {
+-    const r = await fetch(`${API}/auth/token`, {
+-      method: "POST",
+-      headers: { "Content-Type": "application/json" },
+-      body: JSON.stringify({ grant_type: "client_credentials" }),
+-    });
+-    if (!r.ok) return null;
+-    const data = await r.json();
+-    _ccToken = { access_token: data.access_token, expires_at: now + (data.expires_in || 3600) };
+-    return _ccToken.access_token;
+-  } catch { return null; }
+-}
+-
+ async function apiFetch(url, opts = {}) {
+   const state = _authState || await loadAuthState();
+-  if (!state.oauth_enabled) {
+-    // No auth — plain fetch with cookies for session
+-    return fetch(url, { ...opts, credentials: "include" });
+-  }
+-
+-  // Try Bearer token first (CC flow preferred for API calls)
+-  let token = await getCCToken();
+-  const headers = { ...(opts.headers || {}) };
+-  if (token) {
+-    headers["Authorization"] = `Bearer ${token}`;
+-  }
+ 
+-  const resp = await fetch(url, { ...opts, headers, credentials: "include" });
+-  if (resp.status === 401) {
+-    // Session expired or no CC token — redirect to Authorization Code login
+-    window.location.href = `${API}/auth/login?next=${encodeURIComponent(window.location.pathname)}`;
+-    return resp;
++  // The browser GUI always authenticates via its session cookie (set during
++  // the Authorization Code login). The Client Credentials flow (/auth/token)
++  // is for external machine-to-machine callers hitting /api/* directly — it is
++  // deliberately NOT used here, because minting a service-account token would
++  // run the user's requests under the service identity instead of their own.
++  const resp = await fetch(url, { ...opts, credentials: "include" });
++
++  if (state.oauth_enabled && resp.status === 401) {
++    // Session missing or expired — send the user through Authorization Code login.
++    window.location.href =
++      `${API}/auth/login?next=${encodeURIComponent(window.location.pathname)}`;
+   }
+   return resp;
+ }
