@@ -24,6 +24,17 @@ http = [
     "uvicorn>=0.27",
     "starlette>=0.35",
 ]
+gui = [
+    "flask>=3.0",
+    "flask-cors>=4.0",
+]
+oauth = [
+    "flask>=3.0",
+    "flask-cors>=4.0",
+    "PyJWT[crypto]>=2.8.0",
+    "cryptography>=42.0",
+    "requests>=2.31",
+]
 dev = [
     "ruff==0.12.5",
     "pre-commit==4.2.0",

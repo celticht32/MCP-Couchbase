@@ -5,3 +5,12 @@ couchbase>=4.4.0,<5.0.0
 # Optional — only needed with CB_MCP_TRANSPORT=http
 # uvicorn>=0.27
 # starlette>=0.35
+
+# GUI server
+flask>=3.0
+flask-cors>=4.0
+
+# OAuth 2.0 / OIDC (required when OAUTH_ENABLED=true)
+PyJWT[crypto]>=2.8.0
+cryptography>=42.0
+requests>=2.31

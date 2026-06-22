@@ -367,6 +367,65 @@ const { useState, useEffect, useCallback, useRef, useMemo } = React;
 // ── Constants ─────────────────────────────────────────────────────────────────
 const API = window.location.origin; // same origin as Flask
 
+// ── Auth layer ────────────────────────────────────────────────────────────────
+// All fetch calls go through apiFetch(), which:
+//   - injects Authorization: Bearer header when a CC token is available
+//   - handles 401 by redirecting to /auth/login (Authorization Code flow)
+//   - is a no-op passthrough when OAuth is disabled (oauth_enabled: false)
+
+let _authState = null; // cached result of /auth/status
+let _ccToken   = null; // client-credentials token { access_token, expires_at }
+
+async function loadAuthState() {
+  try {
+    const r = await fetch(`${API}/auth/status`, { credentials: "include" });
+    _authState = await r.json();
+  } catch (e) {
+    _authState = { oauth_enabled: false, authenticated: true };
+  }
+  return _authState;
+}
+
+async function getCCToken() {
+  const now = Date.now() / 1000;
+  if (_ccToken && _ccToken.expires_at > now + 60) return _ccToken.access_token;
+  // Try to obtain a new CC token (only works when server has CC creds configured)
+  try {
+    const r = await fetch(`${API}/auth/token`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ grant_type: "client_credentials" }),
+    });
+    if (!r.ok) return null;
+    const data = await r.json();
+    _ccToken = { access_token: data.access_token, expires_at: now + (data.expires_in || 3600) };
+    return _ccToken.access_token;
+  } catch { return null; }
+}
+
+async function apiFetch(url, opts = {}) {
+  const state = _authState || await loadAuthState();
+  if (!state.oauth_enabled) {
+    // No auth — plain fetch with cookies for session
+    return fetch(url, { ...opts, credentials: "include" });
+  }
+
+  // Try Bearer token first (CC flow preferred for API calls)
+  let token = await getCCToken();
+  const headers = { ...(opts.headers || {}) };
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+
+  const resp = await fetch(url, { ...opts, headers, credentials: "include" });
+  if (resp.status === 401) {
+    // Session expired or no CC token — redirect to Authorization Code login
+    window.location.href = `${API}/auth/login?next=${encodeURIComponent(window.location.pathname)}`;
+    return resp;
+  }
+  return resp;
+}
+
 const CATEGORY_CONFIG = {
   // Specific cb_ categories MUST come before generic Data (first prefix match wins)
   "Diagnostics":   { prefix: "cb_get_schema|cb_index_advisor|cb_explain|cb_perf_", color: "#9ccc65", icon: "◧", badge: "#1a2a0d" },
@@ -565,7 +624,7 @@ function ConfigModal({ onClose, onSave }) {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    fetch(`${API}/api/config`)
+    apiFetch(`${API}/api/config`)
       .then(r => r.json())
       .then(setCfg)
       .catch(() => {});
@@ -576,7 +635,7 @@ function ConfigModal({ onClose, onSave }) {
   const save = async () => {
     setSaving(true);
     try {
-      await fetch(`${API}/api/config`, {
+      await apiFetch(`${API}/api/config`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(cfg),
@@ -636,13 +695,21 @@ function App() {
   const [showConfig, setShowConfig] = useState(false);
   const [connStatus, setConnStatus] = useState("idle"); // idle | ok | err
   const [elapsed, setElapsed]     = useState(null);
+  const [currentUser, setCurrentUser] = useState(null); // { email, name } | null
 
-  // Load tools on mount
+  // Load auth state, then tools
   useEffect(() => {
-    fetch(`${API}/api/tools`)
-      .then(r => r.json())
-      .then(data => setTools(data))
-      .catch(() => setTools([]));
+    loadAuthState().then(state => {
+      if (state.oauth_enabled && !state.authenticated) {
+        window.location.href = `${API}/auth/login?next=/`;
+        return;
+      }
+      if (state.user) setCurrentUser(state.user);
+      apiFetch(`${API}/api/tools`)
+        .then(r => r.json())
+        .then(data => setTools(data))
+        .catch(() => setTools([]));
+    });
   }, []);
 
   // Group tools by category
@@ -668,7 +735,7 @@ function App() {
     setResult(null);
     const t0 = Date.now();
     try {
-      const resp = await fetch(`${API}/api/call`, {
+      const resp = await apiFetch(`${API}/api/call`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ tool: selected, arguments: args }),
@@ -742,6 +809,28 @@ function App() {
           </nav>
 
           <div className="config-strip">
+            {currentUser && (
+              <div style={{ display:"flex", alignItems:"center", gap:8, padding:"6px 0 8px", borderBottom:"1px solid var(--border)", marginBottom:8 }}>
+                <span style={{ width:24, height:24, borderRadius:"50%", background:"var(--accent)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:11, fontWeight:700, color:"white", flexShrink:0 }}>
+                  {(currentUser.name || currentUser.email || "?")[0].toUpperCase()}
+                </span>
+                <div style={{ flex:1, minWidth:0 }}>
+                  <div style={{ fontSize:11, fontWeight:600, color:"var(--text)", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+                    {currentUser.name || currentUser.email}
+                  </div>
+                  {currentUser.name && currentUser.email && (
+                    <div style={{ fontSize:10, color:"var(--text3)", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+                      {currentUser.email}
+                    </div>
+                  )}
+                </div>
+                <a href={`${API}/auth/logout`}
+                   style={{ fontSize:10, color:"var(--text3)", textDecoration:"none", flexShrink:0, padding:"2px 6px", border:"1px solid var(--border)", borderRadius:4 }}
+                   title="Sign out">
+                  Sign out
+                </a>
+              </div>
+            )}
             <button className="config-btn" onClick={() => setShowConfig(true)}>
               <span className={`conn-status ${connStatus}`} />
               Connection Settings
