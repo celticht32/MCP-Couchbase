@@ -41,8 +41,10 @@ import requests as _requests
 
 # ── Config helpers ────────────────────────────────────────────────────────────
 
+
 def _env(key: str, default: str = "") -> str:
     return os.environ.get(key, default).strip()
+
 
 def _env_required(key: str) -> str:
     val = _env(key)
@@ -78,33 +80,29 @@ def _discover() -> dict[str, Any]:
 
 # ── Authorization Code + PKCE ─────────────────────────────────────────────────
 
+
 def generate_pkce_pair() -> tuple[str, str]:
     """Return (code_verifier, code_challenge) for PKCE S256."""
     verifier = secrets.token_urlsafe(64)
     digest = hashlib.sha256(verifier.encode()).digest()
-    challenge = (
-        __import__("base64")
-        .urlsafe_b64encode(digest)
-        .rstrip(b"=")
-        .decode()
-    )
+    challenge = __import__("base64").urlsafe_b64encode(digest).rstrip(b"=").decode()
     return verifier, challenge
 
 
 def build_authorization_url(state: str, code_challenge: str) -> str:
     """Build the full Authorization Code + PKCE redirect URL."""
-    doc     = _discover()
+    doc = _discover()
     auth_ep = doc["authorization_endpoint"]
-    scopes  = _env("OAUTH_SCOPES") or "openid profile email"
-    aud     = _env("OAUTH_AUDIENCE")
+    scopes = _env("OAUTH_SCOPES") or "openid profile email"
+    aud = _env("OAUTH_AUDIENCE")
 
     params: dict[str, str] = {
-        "response_type":         "code",
-        "client_id":             _env_required("OAUTH_CLIENT_ID"),
-        "redirect_uri":          _env_required("OAUTH_REDIRECT_URI"),
-        "scope":                 scopes,
-        "state":                 state,
-        "code_challenge":        code_challenge,
+        "response_type": "code",
+        "client_id": _env_required("OAUTH_CLIENT_ID"),
+        "redirect_uri": _env_required("OAUTH_REDIRECT_URI"),
+        "scope": scopes,
+        "state": state,
+        "code_challenge": code_challenge,
         "code_challenge_method": "S256",
     }
     if aud:
@@ -118,13 +116,13 @@ def exchange_code(code: str, code_verifier: str) -> dict[str, Any]:
     Exchange an authorization code for tokens.
     Returns the full token response dict (access_token, id_token, refresh_token, …).
     """
-    doc      = _discover()
+    doc = _discover()
     token_ep = doc["token_endpoint"]
-    payload  = {
-        "grant_type":    "authorization_code",
-        "code":          code,
-        "redirect_uri":  _env_required("OAUTH_REDIRECT_URI"),
-        "client_id":     _env_required("OAUTH_CLIENT_ID"),
+    payload = {
+        "grant_type": "authorization_code",
+        "code": code,
+        "redirect_uri": _env_required("OAUTH_REDIRECT_URI"),
+        "client_id": _env_required("OAUTH_CLIENT_ID"),
         "client_secret": _env_required("OAUTH_CLIENT_SECRET"),
         "code_verifier": code_verifier,
     }
@@ -135,12 +133,12 @@ def exchange_code(code: str, code_verifier: str) -> dict[str, Any]:
 
 def refresh_access_token(refresh_token: str) -> dict[str, Any]:
     """Use a refresh token to get a new access token."""
-    doc      = _discover()
+    doc = _discover()
     token_ep = doc["token_endpoint"]
-    payload  = {
-        "grant_type":    "refresh_token",
+    payload = {
+        "grant_type": "refresh_token",
         "refresh_token": refresh_token,
-        "client_id":     _env_required("OAUTH_CLIENT_ID"),
+        "client_id": _env_required("OAUTH_CLIENT_ID"),
         "client_secret": _env_required("OAUTH_CLIENT_SECRET"),
     }
     resp = _requests.post(token_ep, data=payload, timeout=15)
@@ -150,33 +148,40 @@ def refresh_access_token(refresh_token: str) -> dict[str, Any]:
 
 # ── Client Credentials ────────────────────────────────────────────────────────
 
+
 def client_credentials_token() -> dict[str, Any]:
     """
     Obtain an access token via the Client Credentials flow.
     Uses OAUTH_CC_* vars when set, falls back to OAUTH_CLIENT_*.
     Returns the full token response dict.
     """
-    doc      = _discover()
+    doc = _discover()
     token_ep = doc["token_endpoint"]
 
-    client_id     = _env("OAUTH_CC_CLIENT_ID")     or _env_required("OAUTH_CLIENT_ID")
-    client_secret = _env("OAUTH_CC_CLIENT_SECRET") or _env_required("OAUTH_CLIENT_SECRET")
-    scopes        = _env("OAUTH_CC_SCOPES")
-    aud           = _env("OAUTH_AUDIENCE")
+    client_id = _env("OAUTH_CC_CLIENT_ID") or _env_required("OAUTH_CLIENT_ID")
+    client_secret = _env("OAUTH_CC_CLIENT_SECRET") or _env_required(
+        "OAUTH_CLIENT_SECRET"
+    )
+    scopes = _env("OAUTH_CC_SCOPES")
+    aud = _env("OAUTH_AUDIENCE")
 
     # Default CC scopes: strip OIDC-only scopes that don't apply to M2M
     if not scopes:
         base = _env("OAUTH_SCOPES") or ""
-        scopes = " ".join(
-            s for s in base.split()
-            if s not in ("openid", "profile", "email", "address", "phone")
-        ) or "api"
+        scopes = (
+            " ".join(
+                s
+                for s in base.split()
+                if s not in ("openid", "profile", "email", "address", "phone")
+            )
+            or "api"
+        )
 
     payload: dict[str, str] = {
-        "grant_type":    "client_credentials",
-        "client_id":     client_id,
+        "grant_type": "client_credentials",
+        "client_id": client_id,
         "client_secret": client_secret,
-        "scope":         scopes,
+        "scope": scopes,
     }
     if aud:
         payload["audience"] = aud
@@ -187,6 +192,7 @@ def client_credentials_token() -> dict[str, Any]:
 
 
 # ── Token validation ──────────────────────────────────────────────────────────
+
 
 def validate_token(token: str) -> dict[str, Any]:
     """
@@ -206,8 +212,8 @@ def validate_token(token: str) -> dict[str, Any]:
         return jwt.decode(token, options={"verify_signature": False})
 
     algorithms = (_env("OAUTH_ALGORITHMS") or "RS256").split()
-    issuer     = _env("OAUTH_ISSUER").rstrip("/")
-    audience   = _env("OAUTH_AUDIENCE") or None
+    issuer = _env("OAUTH_ISSUER").rstrip("/")
+    audience = _env("OAUTH_AUDIENCE") or None
 
     # Resolve the JWKS URI once (from explicit env var or discovery), then
     # use a module-cached PyJWKClient so the fetched key set persists between
@@ -239,7 +245,7 @@ def validate_token(token: str) -> dict[str, Any]:
 def userinfo_from_claims(claims: dict[str, Any]) -> dict[str, str]:
     """Extract displayable user info from decoded JWT claims."""
     return {
-        "sub":   claims.get("sub", ""),
+        "sub": claims.get("sub", ""),
         "email": claims.get("email", claims.get("preferred_username", "")),
-        "name":  claims.get("name", claims.get("given_name", "")),
+        "name": claims.get("name", claims.get("given_name", "")),
     }

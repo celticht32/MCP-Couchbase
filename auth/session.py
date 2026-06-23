@@ -17,22 +17,23 @@ Required environment variable:
 
 from __future__ import annotations
 
+import base64
+import hashlib
+import hmac
 import os
 import secrets
 import time
 from typing import Any
 
-import hmac
-import hashlib
-import base64
-
 # ── Config ────────────────────────────────────────────────────────────────────
+
 
 def _session_ttl() -> int:
     try:
         return int(os.environ.get("OAUTH_SESSION_TTL_SECONDS", "28800"))  # 8 h
     except (ValueError, TypeError):
         return 28800
+
 
 SESSION_COOKIE = "cb_mcp_session"
 
@@ -46,7 +47,7 @@ def _signing_key() -> bytes:
     if not secret:
         raise RuntimeError(
             "OAUTH_SESSION_SECRET is not set. "
-            "Generate one with: python -c \"import secrets; print(secrets.token_hex(32))\""
+            'Generate one with: python -c "import secrets; print(secrets.token_hex(32))"'
         )
     return secret.encode()
 
@@ -64,6 +65,7 @@ def _b64_decode(s: str) -> bytes:
 
 
 # ── Cookie signing ────────────────────────────────────────────────────────────
+
 
 def _sign(session_id: str) -> str:
     """Return  base64(session_id).base64(hmac-sha256)  — a tamper-evident cookie value."""
@@ -84,7 +86,7 @@ def _unsign(cookie_value: str) -> str | None:
     except Exception:
         return None
 
-    key      = _signing_key()
+    key = _signing_key()
     expected = hmac.new(key, session_id.encode(), hashlib.sha256).digest()
 
     try:
@@ -98,6 +100,7 @@ def _unsign(cookie_value: str) -> str | None:
 
 
 # ── Public API ────────────────────────────────────────────────────────────────
+
 
 def create_session(data: dict[str, Any]) -> str:
     """

@@ -61,22 +61,50 @@ from typing import Any
 SERVER_ROOT = os.path.join(os.path.dirname(__file__), "..")
 sys.path.insert(0, os.path.abspath(SERVER_ROOT))
 
-from flask import Flask, jsonify, make_response, redirect, request, send_from_directory  # noqa: E402
+from flask import (  # noqa: E402
+    Flask,
+    jsonify,
+    make_response,
+    redirect,
+    request,
+    send_from_directory,
+)
 from flask_cors import CORS  # noqa: E402
 
 from handlers import (  # noqa: E402
-    buckets, cluster, collections, data, diagnostics,
-    eight_x, encryption, eventing, extended, indexes,
-    mcp_status, search_admin, security, stats, synonyms, xdcr,
+    buckets,
+    cluster,
+    collections,
+    data,
+    diagnostics,
+    eight_x,
+    encryption,
+    eventing,
+    extended,
+    indexes,
+    mcp_status,
+    search_admin,
+    security,
+    stats,
+    synonyms,
+    xdcr,
 )
 from handlers.shared import (  # noqa: E402
-    _CUSTOM_CONFIRMATION_TOOLS, DISABLED_TOOLS, READ_ONLY_MODE, require_confirmation,
+    _CUSTOM_CONFIRMATION_TOOLS,
+    DISABLED_TOOLS,
+    READ_ONLY_MODE,
+    require_confirmation,
 )
 
 # ---------------------------------------------------------------------------
 # OAuth feature flag
 # ---------------------------------------------------------------------------
-_OAUTH_ENABLED = os.environ.get("OAUTH_ENABLED", "false").lower() in ("1", "true", "yes", "on")
+_OAUTH_ENABLED = os.environ.get("OAUTH_ENABLED", "false").lower() in (
+    "1",
+    "true",
+    "yes",
+    "on",
+)
 
 if _OAUTH_ENABLED:
     from auth import oidc as _oidc
@@ -94,36 +122,48 @@ CORS(
         re.compile(r"^https?://127\.0\.0\.1(:[0-9]+)?$"),
         re.compile(r"^https?://\[::1\](:[0-9]+)?$"),
     ],
-    supports_credentials=True,   # Required for cookie-based sessions
+    supports_credentials=True,  # Required for cookie-based sessions
 )
 
 # ---------------------------------------------------------------------------
 # Tool registry
 # ---------------------------------------------------------------------------
 ALL_TOOLS = (
-    data.TOOLS + buckets.TOOLS + collections.TOOLS + security.TOOLS
-    + cluster.TOOLS + xdcr.TOOLS + indexes.TOOLS + search_admin.TOOLS
-    + stats.TOOLS + diagnostics.TOOLS + eight_x.TOOLS + extended.TOOLS
-    + eventing.TOOLS + synonyms.TOOLS + encryption.TOOLS + mcp_status.TOOLS
+    data.TOOLS
+    + buckets.TOOLS
+    + collections.TOOLS
+    + security.TOOLS
+    + cluster.TOOLS
+    + xdcr.TOOLS
+    + indexes.TOOLS
+    + search_admin.TOOLS
+    + stats.TOOLS
+    + diagnostics.TOOLS
+    + eight_x.TOOLS
+    + extended.TOOLS
+    + eventing.TOOLS
+    + synonyms.TOOLS
+    + encryption.TOOLS
+    + mcp_status.TOOLS
 )
 
 HANDLERS = {
-    **{t.name: data         for t in data.TOOLS},
-    **{t.name: buckets      for t in buckets.TOOLS},
-    **{t.name: collections  for t in collections.TOOLS},
-    **{t.name: security     for t in security.TOOLS},
-    **{t.name: cluster      for t in cluster.TOOLS},
-    **{t.name: xdcr         for t in xdcr.TOOLS},
-    **{t.name: indexes      for t in indexes.TOOLS},
+    **{t.name: data for t in data.TOOLS},
+    **{t.name: buckets for t in buckets.TOOLS},
+    **{t.name: collections for t in collections.TOOLS},
+    **{t.name: security for t in security.TOOLS},
+    **{t.name: cluster for t in cluster.TOOLS},
+    **{t.name: xdcr for t in xdcr.TOOLS},
+    **{t.name: indexes for t in indexes.TOOLS},
     **{t.name: search_admin for t in search_admin.TOOLS},
-    **{t.name: stats        for t in stats.TOOLS},
-    **{t.name: diagnostics  for t in diagnostics.TOOLS},
-    **{t.name: eight_x      for t in eight_x.TOOLS},
-    **{t.name: extended     for t in extended.TOOLS},
-    **{t.name: eventing     for t in eventing.TOOLS},
-    **{t.name: synonyms     for t in synonyms.TOOLS},
-    **{t.name: encryption   for t in encryption.TOOLS},
-    **{t.name: mcp_status   for t in mcp_status.TOOLS},
+    **{t.name: stats for t in stats.TOOLS},
+    **{t.name: diagnostics for t in diagnostics.TOOLS},
+    **{t.name: eight_x for t in eight_x.TOOLS},
+    **{t.name: extended for t in extended.TOOLS},
+    **{t.name: eventing for t in eventing.TOOLS},
+    **{t.name: synonyms for t in synonyms.TOOLS},
+    **{t.name: encryption for t in encryption.TOOLS},
+    **{t.name: mcp_status for t in mcp_status.TOOLS},
 }
 
 TOOL_INDEX = {t.name: t for t in ALL_TOOLS}
@@ -135,8 +175,10 @@ TOOL_INDEX = {t.name: t for t in ALL_TOOLS}
 def _is_destructive(tool) -> bool:
     return bool(tool and tool.annotations and tool.annotations.destructiveHint)
 
+
 def _is_read_only(tool) -> bool:
     return bool(tool and tool.annotations and tool.annotations.readOnlyHint)
+
 
 def _visible_tools():
     always_loaded_in_ro = {"cb_query", "cb_analytics_query"}
@@ -144,7 +186,11 @@ def _visible_tools():
     for t in ALL_TOOLS:
         if t.name in DISABLED_TOOLS:
             continue
-        if READ_ONLY_MODE and not _is_read_only(t) and t.name not in always_loaded_in_ro:
+        if (
+            READ_ONLY_MODE
+            and not _is_read_only(t)
+            and t.name not in always_loaded_in_ro
+        ):
             continue
         out.append(t)
     return out
@@ -154,14 +200,26 @@ def _visible_tools():
 # Config allow-list and redaction (unchanged from original)
 # ---------------------------------------------------------------------------
 _CONFIG_ALLOWLIST = {
-    "CB_CONNECTION_STRING", "CB_USERNAME", "CB_PASSWORD",
-    "CB_BUCKET", "CB_SCOPE", "CB_COLLECTION", "CB_MGMT_PORT",
-    "CB_CA_CERT_PATH", "CB_CLIENT_CERT_PATH", "CB_CLIENT_KEY_PATH",
-    "CB_MCP_TLS_INSECURE", "CB_MCP_READ_ONLY_MODE", "CB_MCP_DISABLED_TOOLS",
-    "CB_MCP_CONFIRMATION_REQUIRED_TOOLS", "CB_MCP_HTTP_RETRIES",
-    "CB_MCP_HTTP_TIMEOUT", "CAPELLA_API_KEY_SECRET",
+    "CB_CONNECTION_STRING",
+    "CB_USERNAME",
+    "CB_PASSWORD",
+    "CB_BUCKET",
+    "CB_SCOPE",
+    "CB_COLLECTION",
+    "CB_MGMT_PORT",
+    "CB_CA_CERT_PATH",
+    "CB_CLIENT_CERT_PATH",
+    "CB_CLIENT_KEY_PATH",
+    "CB_MCP_TLS_INSECURE",
+    "CB_MCP_READ_ONLY_MODE",
+    "CB_MCP_DISABLED_TOOLS",
+    "CB_MCP_CONFIRMATION_REQUIRED_TOOLS",
+    "CB_MCP_HTTP_RETRIES",
+    "CB_MCP_HTTP_TIMEOUT",
+    "CAPELLA_API_KEY_SECRET",
 }
 _REDACTED_FIELDS = {"CB_PASSWORD", "CAPELLA_API_KEY_SECRET", "CB_CLIENT_KEY_PATH"}
+
 
 def _redact(key: str, value: str) -> str:
     if not value:
@@ -172,6 +230,7 @@ def _redact(key: str, value: str) -> str:
 # ---------------------------------------------------------------------------
 # Authentication middleware
 # ---------------------------------------------------------------------------
+
 
 def _get_bearer_token() -> str | None:
     """Extract a Bearer token from the Authorization header."""
@@ -199,19 +258,22 @@ def _get_session_claims() -> dict[str, Any] | None:
             _session.delete_session(cookie)
             return None
         try:
-            tokens      = _oidc.refresh_access_token(refresh_token)
+            tokens = _oidc.refresh_access_token(refresh_token)
             new_expires = time.time() + tokens.get("expires_in", 3600)
             # Re-validate the freshly issued token so stored claims stay
             # in sync with the new token (expiry, roles, etc.).
             new_token = tokens.get("access_token") or tokens.get("id_token", "")
             new_claims = _oidc.validate_token(new_token)
-            _session.update_session(cookie, {
-                "access_token":  tokens.get("access_token", ""),
-                "id_token":      tokens.get("id_token", sess.get("id_token", "")),
-                "expires_at":    new_expires,
-                "refresh_token": tokens.get("refresh_token", refresh_token),
-                "claims":        new_claims,
-            })
+            _session.update_session(
+                cookie,
+                {
+                    "access_token": tokens.get("access_token", ""),
+                    "id_token": tokens.get("id_token", sess.get("id_token", "")),
+                    "expires_at": new_expires,
+                    "refresh_token": tokens.get("refresh_token", refresh_token),
+                    "claims": new_claims,
+                },
+            )
             return new_claims
         except Exception:
             # Refresh or re-validation failed — session is dead
@@ -248,6 +310,7 @@ _PUBLIC_PATHS = {
     "/auth/status",
 }
 
+
 def _is_public(path: str) -> bool:
     return path in _PUBLIC_PATHS or path.startswith("/static/")
 
@@ -258,6 +321,7 @@ def require_auth(f):
     - API routes: returns 401 JSON on failure.
     - Browser routes: handled by the frontend (which checks /auth/status).
     """
+
     @wraps(f)
     def wrapper(*args, **kwargs):
         if not _OAUTH_ENABLED:
@@ -270,6 +334,7 @@ def require_auth(f):
         # Attach claims to request context for downstream use
         request.oauth_claims = claims  # type: ignore[attr-defined]
         return f(*args, **kwargs)
+
     return wrapper
 
 
@@ -307,7 +372,9 @@ _PKCE_TTL = 600  # 10 minutes — enough to complete a browser login
 def _pkce_purge() -> None:
     """Remove PKCE entries older than _PKCE_TTL seconds."""
     cutoff = time.time() - _PKCE_TTL
-    stale  = [s for s, v in _pkce_store.items() if float(v.get("created_at", 0)) < cutoff]
+    stale = [
+        s for s, v in _pkce_store.items() if float(v.get("created_at", 0)) < cutoff
+    ]
     for s in stale:
         _pkce_store.pop(s, None)
 
@@ -325,11 +392,13 @@ def auth_status():
     if claims is None:
         return jsonify({"oauth_enabled": True, "authenticated": False})
 
-    return jsonify({
-        "oauth_enabled":   True,
-        "authenticated":   True,
-        "user":            _oidc.userinfo_from_claims(claims),
-    })
+    return jsonify(
+        {
+            "oauth_enabled": True,
+            "authenticated": True,
+            "user": _oidc.userinfo_from_claims(claims),
+        }
+    )
 
 
 @app.route("/auth/login")
@@ -346,13 +415,18 @@ def auth_login():
     # Validate next_url is a relative path — reject anything with a scheme
     # or host to prevent open redirect attacks.
     from urllib.parse import urlparse as _urlparse
+
     parsed = _urlparse(raw_next)
     next_url = raw_next if (not parsed.scheme and not parsed.netloc) else "/"
 
     _pkce_purge()
     state = secrets.token_urlsafe(32)
     verifier, challenge = _oidc.generate_pkce_pair()
-    _pkce_store[state] = {"verifier": verifier, "next": next_url, "created_at": str(time.time())}
+    _pkce_store[state] = {
+        "verifier": verifier,
+        "next": next_url,
+        "created_at": str(time.time()),
+    }
 
     try:
         url = _oidc.build_authorization_url(state=state, code_challenge=challenge)
@@ -378,14 +452,18 @@ def auth_callback():
         return jsonify({"error": f"IdP error: {desc}"}), 400
 
     state = request.args.get("state", "")
-    code  = request.args.get("code", "")
+    code = request.args.get("code", "")
 
     if not code:
         return jsonify({"error": "Missing authorization code in callback."}), 400
 
     pkce = _pkce_store.pop(state, None)
     if pkce is None:
-        return jsonify({"error": "Invalid or expired state parameter. Please try logging in again."}), 400
+        return jsonify(
+            {
+                "error": "Invalid or expired state parameter. Please try logging in again."
+            }
+        ), 400
 
     try:
         tokens = _oidc.exchange_code(code=code, code_verifier=pkce["verifier"])
@@ -403,13 +481,15 @@ def auth_callback():
 
     expires_at = time.time() + tokens.get("expires_in", 3600)
 
-    cookie_val = _session.create_session({
-        "access_token":  tokens.get("access_token", ""),
-        "id_token":      tokens.get("id_token", ""),
-        "refresh_token": tokens.get("refresh_token", ""),
-        "expires_at":    expires_at,
-        "claims":        claims,
-    })
+    cookie_val = _session.create_session(
+        {
+            "access_token": tokens.get("access_token", ""),
+            "id_token": tokens.get("id_token", ""),
+            "refresh_token": tokens.get("refresh_token", ""),
+            "expires_at": expires_at,
+            "claims": claims,
+        }
+    )
 
     next_url = pkce.get("next", "/")
     resp = make_response(redirect(next_url))
@@ -439,14 +519,13 @@ def auth_logout():
 
     # Try IdP logout (RP-Initiated Logout — optional, provider-dependent)
     try:
-        doc       = _oidc._discover()
-        end_ep    = doc.get("end_session_endpoint")
+        doc = _oidc._discover()
+        end_ep = doc.get("end_session_endpoint")
         client_id = os.environ.get("OAUTH_CLIENT_ID", "")
         if end_ep and client_id:
             post_logout = request.host_url.rstrip("/")
-            idp_logout  = (
-                f"{end_ep}?client_id={client_id}"
-                f"&post_logout_redirect_uri={post_logout}"
+            idp_logout = (
+                f"{end_ep}?client_id={client_id}&post_logout_redirect_uri={post_logout}"
             )
             resp = make_response(redirect(idp_logout))
             resp.delete_cookie(_session.SESSION_COOKIE, path="/")
@@ -478,19 +557,23 @@ def auth_token():
 
     body = request.get_json(force=True) or {}
     if body.get("grant_type") != "client_credentials":
-        return jsonify({"error": "Only grant_type=client_credentials is supported here"}), 400
+        return jsonify(
+            {"error": "Only grant_type=client_credentials is supported here"}
+        ), 400
 
     try:
         tokens = _oidc.client_credentials_token()
     except Exception as exc:
         return jsonify({"error": f"Client credentials request failed: {exc}"}), 502
 
-    return jsonify({
-        "access_token": tokens.get("access_token", ""),
-        "token_type":   tokens.get("token_type", "Bearer"),
-        "expires_in":   tokens.get("expires_in", 3600),
-        "scope":        tokens.get("scope", ""),
-    })
+    return jsonify(
+        {
+            "access_token": tokens.get("access_token", ""),
+            "token_type": tokens.get("token_type", "Bearer"),
+            "expires_in": tokens.get("expires_in", 3600),
+            "scope": tokens.get("scope", ""),
+        }
+    )
 
 
 @app.route("/auth/me")
@@ -510,43 +593,56 @@ def auth_me():
 # API endpoints (identical to original, now protected by before_request)
 # ---------------------------------------------------------------------------
 
+
 @app.route("/api/tools", methods=["GET"])
 def list_tools():
     result = []
     for tool in _visible_tools():
-        result.append({
-            "name":        tool.name,
-            "description": tool.description,
-            "inputSchema": tool.inputSchema,
-            "readOnly":    _is_read_only(tool),
-            "destructive": _is_destructive(tool),
-        })
+        result.append(
+            {
+                "name": tool.name,
+                "description": tool.description,
+                "inputSchema": tool.inputSchema,
+                "readOnly": _is_read_only(tool),
+                "destructive": _is_destructive(tool),
+            }
+        )
     return jsonify(result)
 
 
 @app.route("/api/call", methods=["POST"])
 def call_tool():
-    body      = request.get_json(force=True)
+    body = request.get_json(force=True)
     tool_name = body.get("tool")
     arguments = body.get("arguments", {}) or {}
 
     if not tool_name:
         return jsonify({"error": "Missing 'tool' field"}), 400
     if tool_name in DISABLED_TOOLS:
-        return jsonify({"error": f"Tool '{tool_name}' is disabled by configuration"}), 403
+        return jsonify(
+            {"error": f"Tool '{tool_name}' is disabled by configuration"}
+        ), 403
 
     tool = TOOL_INDEX.get(tool_name)
     if tool is None:
         return jsonify({"error": f"Unknown tool: {tool_name}"}), 404
 
-    if READ_ONLY_MODE and not _is_read_only(tool) and tool_name not in ("cb_query", "cb_analytics_query"):
-        return jsonify({"error": (
-            f"Tool '{tool_name}' is a write operation and "
-            "CB_MCP_READ_ONLY_MODE=true. Set false to enable."
-        )}), 403
+    if (
+        READ_ONLY_MODE
+        and not _is_read_only(tool)
+        and tool_name not in ("cb_query", "cb_analytics_query")
+    ):
+        return jsonify(
+            {
+                "error": (
+                    f"Tool '{tool_name}' is a write operation and "
+                    "CB_MCP_READ_ONLY_MODE=true. Set false to enable."
+                )
+            }
+        ), 403
 
     in_confirm_set = _is_destructive(tool) or tool_name in _CUSTOM_CONFIRMATION_TOOLS
-    confirm_err    = require_confirmation(tool_name, arguments, in_confirm_set)
+    confirm_err = require_confirmation(tool_name, arguments, in_confirm_set)
     if confirm_err is not None:
         return jsonify({"ok": False, "error": confirm_err}), 403
 
@@ -558,7 +654,7 @@ def call_tool():
 
     try:
         result = handler.handle(tool_name, arguments)
-        text   = result[0].text if result else "{}"
+        text = result[0].text if result else "{}"
         parsed = json.loads(text)
         return jsonify({"ok": True, "result": parsed})
     except Exception as exc:
@@ -568,9 +664,9 @@ def call_tool():
 @app.route("/api/config", methods=["GET", "POST"])
 def config():
     if request.method == "POST":
-        body     = request.get_json(force=True) or {}
+        body = request.get_json(force=True) or {}
         rejected = []
-        applied  = []
+        applied = []
         for key, val in body.items():
             if key not in _CONFIG_ALLOWLIST:
                 rejected.append(key)
@@ -582,26 +678,30 @@ def config():
             applied.append(key)
 
         import handlers.shared as sh
+
         sh._cluster = sh._bucket = sh._collection = None
         return jsonify({"ok": True, "applied": applied, "rejected": rejected})
 
-    return jsonify({
-        k: _redact(k, os.environ.get(k, default))
-        for k, default in {
-            "CB_CONNECTION_STRING": "couchbase://localhost",
-            "CB_USERNAME":          "Administrator",
-            "CB_PASSWORD":          "",
-            "CB_BUCKET":            "default",
-            "CB_SCOPE":             "_default",
-            "CB_COLLECTION":        "_default",
-            "CB_MGMT_PORT":         "8091",
-        }.items()
-    })
+    return jsonify(
+        {
+            k: _redact(k, os.environ.get(k, default))
+            for k, default in {
+                "CB_CONNECTION_STRING": "couchbase://localhost",
+                "CB_USERNAME": "Administrator",
+                "CB_PASSWORD": "",
+                "CB_BUCKET": "default",
+                "CB_SCOPE": "_default",
+                "CB_COLLECTION": "_default",
+                "CB_MGMT_PORT": "8091",
+            }.items()
+        }
+    )
 
 
 # ---------------------------------------------------------------------------
 # SPA
 # ---------------------------------------------------------------------------
+
 
 @app.route("/", defaults={"path": ""})
 @app.route("/<path:path>")
@@ -616,11 +716,16 @@ def serve_frontend(path):
 # ---------------------------------------------------------------------------
 
 if __name__ == "__main__":
-    port  = int(os.environ.get("GUI_PORT", "5173"))
-    host  = os.environ.get("GUI_HOST", "127.0.0.1")
+    port = int(os.environ.get("GUI_PORT", "5173"))
+    host = os.environ.get("GUI_HOST", "127.0.0.1")
     debug = os.environ.get("FLASK_DEBUG", "").lower() in ("1", "true", "yes", "on")
 
-    if host == "0.0.0.0" and os.environ.get("CB_GUI_ALLOW_REMOTE", "").lower() not in ("1", "true", "yes", "on"):
+    if host == "0.0.0.0" and os.environ.get("CB_GUI_ALLOW_REMOTE", "").lower() not in (
+        "1",
+        "true",
+        "yes",
+        "on",
+    ):
         print(
             "[gui] Refusing to bind to 0.0.0.0 without CB_GUI_ALLOW_REMOTE=1.",
             file=sys.stderr,
@@ -635,7 +740,9 @@ if __name__ == "__main__":
         )
 
     if _OAUTH_ENABLED:
-        print(f"[gui] OAuth enabled — issuer: {os.environ.get('OAUTH_ISSUER', '(not set)')}")
+        print(
+            f"[gui] OAuth enabled — issuer: {os.environ.get('OAUTH_ISSUER', '(not set)')}"
+        )
     else:
         print("[gui] OAuth disabled (set OAUTH_ENABLED=true to activate)")
 

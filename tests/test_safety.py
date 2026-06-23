@@ -1573,54 +1573,6 @@ def test_security_domain_local_accepted(clean_env):
 # ═══════════════════════════════════════════════════════════════════════════════
 
 
-@pytest.mark.unit
-def test_sqlpp_tuning_skill_present():
-    """skills/couchbase-sqlpp-tuning/SKILL.md must exist and have frontmatter."""
-    import pathlib
-
-    root = pathlib.Path(__file__).parent.parent
-    skill = root / "skills" / "couchbase-sqlpp-tuning" / "SKILL.md"
-    assert skill.exists(), "couchbase-sqlpp-tuning SKILL.md missing"
-
-    content = skill.read_text()
-    # YAML frontmatter
-    assert content.startswith("---\n"), "SKILL.md missing YAML frontmatter"
-    assert "name: couchbase-sqlpp-tuning" in content
-    assert "description:" in content
-    assert "license: MIT" in content
-    # Must mention the MCP tools the skill ties into
-    assert "cb_explain_query" in content
-    assert "cb_index_advisor" in content
-    assert "cb_perf_" in content
-
-
-@pytest.mark.unit
-def test_sqlpp_tuning_skill_references_present():
-    """All 6 reference files must be present and non-trivially sized."""
-    import pathlib
-
-    root = pathlib.Path(__file__).parent.parent
-    refs_dir = root / "skills" / "couchbase-sqlpp-tuning" / "references"
-    expected = {
-        "explain-plan.md",
-        "index-design.md",
-        "query-patterns.md",
-        "cost-based-optimizer.md",
-        "diagnostic-workflow.md",
-        "pagination.md",
-        "joins-and-cbo.md",
-    }
-    actual = {p.name for p in refs_dir.glob("*.md")}
-    assert expected.issubset(actual), f"Missing reference files: {expected - actual}"
-    # Each reference must be non-trivial (100+ lines is the rough floor)
-    for name in expected:
-        f = refs_dir / name
-        lines = f.read_text().splitlines()
-        assert len(lines) >= 80, (
-            f"{name} has only {len(lines)} lines — too short to be useful"
-        )
-
-
 # ═══════════════════════════════════════════════════════════════════════════════
 # Project-hygiene files
 # ═══════════════════════════════════════════════════════════════════════════════

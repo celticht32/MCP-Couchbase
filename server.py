@@ -80,6 +80,14 @@ from mcp.server import Server
 from mcp.server.stdio import stdio_server
 from mcp.types import TextContent, Tool
 
+from auth.scope_gate import (
+    check_scope,
+    clear_token_claims,
+    set_token_claims,
+)
+from auth.scope_gate import (
+    configure as configure_scope_gate,
+)
 from handlers import (
     buckets,
     capella,
@@ -105,12 +113,6 @@ from handlers.shared import (
     err,
     get_confirmation_required,
     require_confirmation,
-)
-from auth.scope_gate import (
-    check_scope,
-    clear_token_claims,
-    configure as configure_scope_gate,
-    set_token_claims,
 )
 
 # ── Aggregate tool registry ──────────────────────────────────────────────────
@@ -266,7 +268,8 @@ def _startup_banner() -> None:
             "CB_MCP_HTTP_REQUIRE_AUTH is not true -- invalid/missing Bearer "
             "tokens on the HTTP transport are ignored (no enforcement). Set "
             "CB_MCP_HTTP_REQUIRE_AUTH=true to enforce.",
-            file=sys.stderr, flush=True,
+            file=sys.stderr,
+            flush=True,
         )
     msg = (
         f"[couchbase-mcp] tools loaded: {len(_TOOLS)} of {len(_RAW_TOOLS)} "
@@ -318,6 +321,7 @@ class _ScopeAuthMiddleware:
         if token:
             try:
                 from auth import oidc as _oidc
+
                 claims = _oidc.validate_token(token)
             except Exception as exc:  # invalid/expired/malformed -- never log token
                 if self._require:
@@ -337,14 +341,16 @@ class _ScopeAuthMiddleware:
 
 async def _send_401(send, detail: str) -> None:
     body = f'{{"error":"unauthorized","detail":"{detail}"}}'.encode()
-    await send({
-        "type": "http.response.start",
-        "status": 401,
-        "headers": [
-            (b"content-type", b"application/json"),
-            (b"www-authenticate", b"Bearer"),
-        ],
-    })
+    await send(
+        {
+            "type": "http.response.start",
+            "status": 401,
+            "headers": [
+                (b"content-type", b"application/json"),
+                (b"www-authenticate", b"Bearer"),
+            ],
+        }
+    )
     await send({"type": "http.response.body", "body": body})
 
 
