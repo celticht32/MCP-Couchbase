@@ -106,6 +106,12 @@ from handlers.shared import (
     get_confirmation_required,
     require_confirmation,
 )
+from auth.scope_gate import (
+    check_scope,
+    clear_token_claims,
+    configure as configure_scope_gate,
+    set_token_claims,
+)
 
 # ── Aggregate tool registry ──────────────────────────────────────────────────
 
@@ -152,6 +158,10 @@ _HANDLERS = {
 # Tools that stay loaded in read-only mode despite destructiveHint=true,
 # because they enforce read-only behavior internally (e.g. cb_query rejects DML).
 _ALWAYS_LOADED_IN_READ_ONLY: set[str] = {"cb_query", "cb_analytics_query"}
+
+# Keep scope-gate read/write classification in lockstep with the read-only
+# filter below. A read-scoped token may invoke exactly what loads in read-only.
+configure_scope_gate(_ALWAYS_LOADED_IN_READ_ONLY)
 
 
 def _is_read_only(t: Tool) -> bool:
@@ -216,6 +226,16 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
             ),
         )
 
+    # Per-tool OAuth scope enforcement. No-op on stdio / when OAuth is not
+    # configured (no token in context). On authenticated HTTP the token's
+    # scopes must satisfy the tool's required scope, classified the same way
+    # the read-only filter classifies load eligibility.
+    tool_obj = next((t for t in _TOOLS if t.name == name), None)
+    if tool_obj is not None:
+        denial = check_scope(tool_obj)
+        if denial:
+            return err(denial, tool=name, hint="Token is missing the required scope.")
+
     # Confirmation gate for destructive tools.
     in_confirm_set = name in _CONFIRMATION_REQUIRED
     msg = require_confirmation(name, arguments, in_confirm_set)
@@ -236,6 +256,18 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
 
 
 def _startup_banner() -> None:
+    # Footgun guard: OIDC configured but enforcement not required means invalid
+    # tokens are silently ignored on HTTP. Warn so it is a conscious choice.
+    if os.environ.get("OAUTH_ISSUER", "").strip() and os.environ.get(
+        "CB_MCP_HTTP_REQUIRE_AUTH", "false"
+    ).strip().lower() not in ("1", "true", "yes"):
+        print(
+            "[couchbase-mcp] WARNING: OAUTH_ISSUER is set but "
+            "CB_MCP_HTTP_REQUIRE_AUTH is not true -- invalid/missing Bearer "
+            "tokens on the HTTP transport are ignored (no enforcement). Set "
+            "CB_MCP_HTTP_REQUIRE_AUTH=true to enforce.",
+            file=sys.stderr, flush=True,
+        )
     msg = (
         f"[couchbase-mcp] tools loaded: {len(_TOOLS)} of {len(_RAW_TOOLS)} "
         f"(read_only={READ_ONLY_MODE}, disabled={len(DISABLED_TOOLS)}, "
@@ -253,9 +285,77 @@ async def _main_stdio() -> None:
         await app.run(read_stream, write_stream, app.create_initialization_options())
 
 
+class _ScopeAuthMiddleware:
+    """ASGI middleware: validate Bearer token (if present) and stash claims in
+    the scope-gate contextvar for the duration of the request.
+
+    Enforcement is OPTIONAL by default. With OAUTH_ISSUER set and
+    CB_MCP_HTTP_REQUIRE_AUTH=true, a missing/invalid token is rejected at the
+    edge. Otherwise an invalid token is ignored (claims stay None) and per-tool
+    scope checks no-op -- preserving today's behavior unless you opt in.
+    """
+
+    def __init__(self, app):
+        self.app = app
+        self._require = os.environ.get(
+            "CB_MCP_HTTP_REQUIRE_AUTH", "false"
+        ).strip().lower() in ("1", "true", "yes")
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        token = None
+        for k, v in scope.get("headers", []):
+            if k == b"authorization":
+                val = v.decode("latin-1")
+                if val.lower().startswith("bearer "):
+                    token = val[7:].strip()
+                break
+
+        claims = None
+        if token:
+            try:
+                from auth import oidc as _oidc
+                claims = _oidc.validate_token(token)
+            except Exception as exc:  # invalid/expired/malformed -- never log token
+                if self._require:
+                    await _send_401(send, f"Invalid token: {type(exc).__name__}")
+                    return
+                claims = None
+        elif self._require:
+            await _send_401(send, "Missing Bearer token")
+            return
+
+        set_token_claims(claims)
+        try:
+            await self.app(scope, receive, send)
+        finally:
+            clear_token_claims()
+
+
+async def _send_401(send, detail: str) -> None:
+    body = f'{{"error":"unauthorized","detail":"{detail}"}}'.encode()
+    await send({
+        "type": "http.response.start",
+        "status": 401,
+        "headers": [
+            (b"content-type", b"application/json"),
+            (b"www-authenticate", b"Bearer"),
+        ],
+    })
+    await send({"type": "http.response.body", "body": body})
+
+
 async def _main_http() -> None:
-    """Streamable HTTP transport. Note: this mode does not include authorization;
-    deploy behind a reverse proxy or authenticated network."""
+    """Streamable HTTP transport.
+
+    Request authorization is optional: with OAUTH_ISSUER configured and
+    CB_MCP_HTTP_REQUIRE_AUTH=true, _ScopeAuthMiddleware validates the Bearer
+    token and per-tool scope enforcement applies. Otherwise this mode performs
+    no request authentication -- deploy behind a reverse proxy or trusted
+    network."""
     try:
         from mcp.server.streamable_http import StreamableHTTPServerTransport
     except ImportError:
@@ -283,7 +383,12 @@ async def _main_http() -> None:
         from starlette.routing import Mount
 
         transport = StreamableHTTPServerTransport(mcp_session_id=None)
-        starlette_app = Starlette(routes=[Mount("/mcp", app=transport.handle_request)])
+        from starlette.middleware import Middleware
+
+        starlette_app = Starlette(
+            routes=[Mount("/mcp", app=transport.handle_request)],
+            middleware=[Middleware(_ScopeAuthMiddleware)],
+        )
         config = uvicorn.Config(starlette_app, host=host, port=port, log_level="info")
         server = uvicorn.Server(config)
 
